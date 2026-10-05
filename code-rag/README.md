@@ -30,6 +30,14 @@ Prérequis : Qdrant et Ollama démarrés (`ollama pull qwen3-embedding:8b` une s
    (`--force` pour tout refaire). Une page sans texte signale un PDF non OCR.
 3. Vérifier : `uv run code-rag status` (points par source, Qdrant / Ollama joignables).
 
+### PDF protégé / couche texte factice
+
+Symptôme : `ingest` s'arrête avec le code 3 (« Couche texte factice détectée… ») : le PDF porte
+une couche texte de mots inventés posée sur une image de page, qui polluerait la recherche.
+Remède : refaire la reconnaissance du texte, puis indexer le fichier obtenu :
+`ocrmypdf --language fra+eng --force-ocr "data\CSA 2026.pdf" "data\CSA 2026 OCR.pdf"`
+puis `uv run code-rag ingest "data\CSA 2026 OCR.pdf"` (`--allow-decoy` force, déconseillé).
+
 ## Interroger
 
 ```powershell

@@ -37,5 +37,7 @@ Tout est à jour, sauf le plugin OMC.
 | Desktop Commander | 0.2.52 | mise (`npm:`) |
 | Agent Canvas | 1.24.0 | `npx -y @openhands/agent-canvas@latest` (pas d'installation globale) |
 | Qdrant | 1.17.0 | `%USERPROFILE%\qdrant`, tâche `Qdrant Vector DB` |
+| Qdrant `codes_electriques` | **vide** (2026-10-05) | `CSA 2026.pdf` a une couche texte factice → ingestion annulée, en attente d'une copie OCR (RUNBOOK §10) |
+| Qdrant `emails` | vide | bloqué par l'incident Outlook OST (RUNBOOK §2) |
 
 Les versions vivantes sont dans [`config/VERSIONS.md`](../config/VERSIONS.md) (régénéré chaque jour par `scripts/snapshot-config.ps1`).

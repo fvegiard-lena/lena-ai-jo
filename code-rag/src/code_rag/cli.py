@@ -7,13 +7,14 @@ from pathlib import Path
 from typing import Annotated
 
 import httpx
+import pymupdf
 import typer
 from qdrant_client import QdrantClient
 
 from . import store
 from .config import COLLECTION, MODEL_NAME, OLLAMA_URL, QDRANT_URL
 from .embed import OllamaEmbedder
-from .pdf import Chunk, iter_pages, page_chunks
+from .pdf import Chunk, is_decoy_layer, iter_pages, page_chunks
 
 FINAL_LINE = (
     "Réponse à rédiger par Léna à partir des extraits ci-dessus ; "
@@ -73,6 +74,21 @@ def _flush(
         pending.clear()
 
 
+def _refuse_decoy(pdf: Path) -> None:
+    with pymupdf.open(pdf) as doc:
+        decoy = is_decoy_layer(doc)
+    if decoy:
+        ocr = pdf.with_name(f"{pdf.stem} OCR.pdf")
+        typer.echo(
+            f"Couche texte factice détectée dans « {pdf.name} » (texte présent mais sans mots "
+            f"réels) — il faut passer par l'OCR : "
+            f'`ocrmypdf --language fra+eng --force-ocr "{pdf}" "{ocr}"` '
+            "puis relancer `ingest` sur le fichier OCR.",
+            err=True,
+        )
+        raise typer.Exit(3)
+
+
 def _ingest_pdf(
     client: QdrantClient,
     embedder: OllamaEmbedder,
@@ -121,10 +137,17 @@ def ingest(
     force: Annotated[
         bool, typer.Option("--force", help="Ré-indexer même les extraits déjà présents.")
     ] = False,
+    allow_decoy: Annotated[
+        bool,
+        typer.Option("--allow-decoy", help="Indexer même si la couche texte est factice (bruit)."),
+    ] = False,
 ) -> None:
     """Indexe des PDF page par page (reprise possible : les extraits présents sont sautés)."""
     if source and len(pdfs) > 1:
         raise _fail("--source ne s'utilise qu'avec un seul PDF.")
+    if not allow_decoy:
+        for pdf in pdfs:
+            _refuse_decoy(pdf)
     embedder = make_embedder()
     try:
         embedder.check()

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import statistics
 import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -15,6 +16,18 @@ from .config import CHUNK_CHARS, CHUNK_OVERLAP
 # Numéro de règle CSA en début de ligne (ex. « 12-3000 »), sinon Section / Table / Tableau.
 _RULE_RE = re.compile(r"^\s*(\d{1,2}-\d{3,4})\b", re.MULTILINE)
 _HEADING_RE = re.compile(r"\b((?:Section|Table|Tableau)\s+\d+[A-Z]?(?:[-.]\d+)*)\b")
+
+# Détection de couche texte factice : un vrai texte FR/EN contient toujours des mots-outils.
+_WORD_RE = re.compile(r"[^\W\d_]+")
+_STOP_WORDS = frozenset(
+    (
+        "le la les des une pour dans est sont avec sur par ce qui que ne pas plus ou doit être "
+        "câble conduit article tableau section "
+        "the and shall of to in for with conductor rule table be is are or not"
+    ).split()
+)
+_DECOY_MAX_QUALITY = 0.02
+_DECOY_MIN_CHARS = 500
 
 
 @dataclass(frozen=True)
@@ -81,3 +94,23 @@ def page_chunks(source: str, page: int, text: str) -> list[Chunk]:
         Chunk(source, page, i, piece, article_hint(piece))
         for i, piece in enumerate(chunk_text(text))
     ]
+
+
+def text_quality(text: str) -> float:
+    """Part des mots qui sont des mots-outils FR/EN courants (≈ 0 pour du bruit aléatoire)."""
+    words = _WORD_RE.findall(text.lower())
+    return sum(word in _STOP_WORDS for word in words) / max(1, len(words))
+
+
+def is_decoy_layer(doc: pymupdf.Document, sample_pages: int = 12) -> bool:
+    """Vrai si le texte existe (> 500 caractères) mais sans mots réels (qualité médiane < 0,02).
+
+    Échantillonne des pages régulièrement espacées ; les pages sans texte (scan) sont ignorées.
+    """
+    last = doc.page_count - 1
+    count = min(sample_pages, doc.page_count)
+    indexes = sorted({i * last // max(1, count - 1) for i in range(count)})
+    texts = [text for i in indexes if (text := doc[i].get_text()).strip()]
+    if sum(len(text) for text in texts) <= _DECOY_MIN_CHARS:
+        return False
+    return statistics.median(text_quality(text) for text in texts) < _DECOY_MAX_QUALITY

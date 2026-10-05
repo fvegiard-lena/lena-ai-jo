@@ -10,6 +10,7 @@ Ce repo garde ses outils et une copie de sa config, en sécurité sur GitHub. Tu
 | « Inventaire S-xxxx » | La liste du matériel du projet, sortie du plan `.qpl`. |
 | « Trace les conduits S-xxxx » **(en test)** | Le tracé des conduits, sorti du plan. |
 | « Bordereau S-xxxx » | Le bordereau de quantités prêt pour la soumission (les prix, c'est toi qui les donnes). |
+| « C'est quoi la règle CSA pour … » **(bientôt — en attente du PDF CSA 2026 passé à l'OCR)** | Elle cherche dans le code électrique et cite l'article exact ; si elle ne le trouve pas, elle le dit. |
 | « Brief du matin » | Courriels, agenda et chantiers du jour, en une page. |
 | « Retrouve le courriel de … sur … » **(bientôt — en attente de la réparation Outlook)** | Elle fouille tes courriels et te sort le bon. |
 
@@ -20,6 +21,7 @@ Remplace `S-xxxx` par ton numéro de projet (ex. `S-0723`).
 - **Tes projets** : OneDrive `DANIEL-FRANCIS-JO\Mes projets` (plans `.qpl`) et Google Drive `plan expert qpl`.
 - **Les outils de Léna** : ce repo (`%USERPROFILE%\dev\lena-ai-jo`)
   - `plan-tools/` : lecture des plans `.qpl` (inventaire, conduits, bordereau)
+  - `code-rag/` : recherche dans les codes électriques (CSA, NECA…) avec citation de la page et de l'article
   - `email-vectorizer/` : recherche dans tes courriels (bientôt — en attente de la réparation Outlook)
   - `config/` : copie de la config (mots de passe masqués), mise à jour chaque jour
   - `scripts/` : sauvegardes, mises à jour et vérification de nuit automatiques

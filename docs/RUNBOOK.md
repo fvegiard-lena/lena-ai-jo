@@ -152,6 +152,20 @@ Voir [CI-CD.md](CI-CD.md). En bref : lire `scripts\lena-nightly.log`. « ÉCHEC 
 
 ---
 
+## 10. Codes électriques (`code-rag`) : le PDF a une « couche texte factice »
+
+**Symptôme (vu le 2026-10-05 avec `CSA 2026.pdf`)** : `code-rag ask` renvoie du charabia (« cicaan vedet temppelici … »). Le PDF protégé contient une image par page et, par-dessus, un texte bidon anti-copie. `code-rag ingest` refuse maintenant ce genre de fichier (code de sortie 3) au lieu d'indexer du bruit.
+
+**Quoi faire** :
+1. Passer le PDF à l'OCR comme pour `Neca 2022 OCR.pdf` et `national estimator 2025 OCR.pdf` (Francis a le flux ; sinon `ocrmypdf --language fra+eng --force-ocr "CSA 2026.pdf" "CSA 2026 OCR.pdf"` — Tesseract + Ghostscript à installer **en admin**, donc pas depuis une session Léna sans surveillance).
+2. Déposer le fichier OCR dans OneDrive `DANIEL-FRANCIS-JO\_CODES\` (synchronisé localement, jamais dans le repo) ou dans `code-rag\data\`.
+3. `uv run --project "$env:USERPROFILE\dev\lena-ai-jo\code-rag" code-rag ingest "<chemin du PDF OCR>" --source "CSA 2026"` puis `code-rag status` doit montrer des points pour la source.
+4. Vérifier : `code-rag ask "remplissage maximal d'un conduit EMT" --k 3` doit renvoyer du vrai texte avec `p.<page>`.
+
+Les PDF des normes restent **locaux** (droits d'auteur) : `code-rag/data/` est ignoré par git.
+
+---
+
 ## Journaux utiles
 
 | Quoi | Où |

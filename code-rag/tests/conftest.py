@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import random
 import zlib
 from pathlib import Path
 from types import SimpleNamespace
@@ -34,9 +35,47 @@ def make_tiny_pdf(path: Path) -> Path:
     return path
 
 
+def make_text_pdf(path: Path, lines: list[str], pages: int = 3) -> Path:
+    """PDF dont chaque page porte les mêmes lignes de texte."""
+    doc = pymupdf.open()
+    for _ in range(pages):
+        doc.new_page(width=1200, height=2400).insert_text((40, 40), "\n".join(lines), fontsize=8)
+    doc.save(path)
+    doc.close()
+    return path
+
+
+def french_lines() -> list[str]:
+    """Vraies phrases françaises (> 500 caractères par page)."""
+    return [
+        f"Article {i} : le conduit doit être installé avec un câble dans le tableau."
+        for i in range(12)
+    ]
+
+
+def salad_lines() -> list[str]:
+    """Bruit façon couche texte factice : mots inventés de 5 à 10 lettres, sans mot réel."""
+    rng = random.Random(42)
+    letters = "abcdefghijklmnopqrstuvwxyz"
+    return [
+        " ".join("".join(rng.choices(letters, k=rng.randint(5, 10))) for _ in range(12))
+        for _ in range(12)
+    ]
+
+
 @pytest.fixture
 def tiny_pdf(tmp_path: Path) -> Path:
     return make_tiny_pdf(tmp_path / "Mini Code.pdf")
+
+
+@pytest.fixture
+def french_pdf(tmp_path: Path) -> Path:
+    return make_text_pdf(tmp_path / "Francais.pdf", french_lines())
+
+
+@pytest.fixture
+def decoy_pdf(tmp_path: Path) -> Path:
+    return make_text_pdf(tmp_path / "Factice.pdf", salad_lines())
 
 
 def bag_of_words(text: str) -> list[float]:

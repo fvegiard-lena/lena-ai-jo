@@ -67,6 +67,28 @@ def test_ingest_source_override_and_guard(wired, tiny_pdf, tmp_path):
     assert guard.exit_code == 2
 
 
+def test_ingest_refuses_decoy_text_layer(wired, decoy_pdf):
+    result = runner.invoke(cli.app, ["ingest", str(decoy_pdf)])
+    assert result.exit_code == 3, result.output
+    assert "Couche texte factice détectée dans « Factice.pdf »" in result.output
+    assert "(texte présent mais sans mots réels)" in result.output
+    assert "ocrmypdf --language fra+eng --force-ocr" in result.output
+    assert "Factice OCR.pdf" in result.output
+    assert wired.collections == {}  # Qdrant n'a pas été touché
+
+
+def test_ingest_allow_decoy_overrides_guard(wired, decoy_pdf):
+    result = runner.invoke(cli.app, ["ingest", str(decoy_pdf), "--allow-decoy"])
+    assert result.exit_code == 0, result.output
+    assert points(wired)
+
+
+def test_ingest_accepts_real_french_text(wired, french_pdf):
+    result = runner.invoke(cli.app, ["ingest", str(french_pdf)])
+    assert result.exit_code == 0, result.output
+    assert points(wired)
+
+
 def test_ask_prints_cited_extracts_and_final_line(wired, tiny_pdf):
     runner.invoke(cli.app, ["ingest", str(tiny_pdf)])
     result = runner.invoke(cli.app, ["ask", "remplissage des conduits", "--k", "2"])
