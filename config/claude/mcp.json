@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "ollama-local": {
+      "command": "node",
+      "args": ["%USERPROFILE%\\.proto\\tools\\node\\24.16.0\\node_modules\\@iflow-mcp\\ollama-mcp\\build\\index.js"],
+      "env": {
+        "OLLAMA_HOST": "http://localhost:11434",
+        "OLLAMA_MODEL": "qwen3:14b"
+      }
+    },
+    "ollama-glm-cloud": {
+      "command": "node",
+      "args": ["%USERPROFILE%\\.proto\\tools\\node\\24.16.0\\node_modules\\@iflow-mcp\\ollama-mcp\\build\\index.js"],
+      "env": {
+        "OLLAMA_HOST": "http://localhost:11434",
+        "OLLAMA_MODEL": "glm-5.1:cloud"
+      }
+    }
+  }
+}

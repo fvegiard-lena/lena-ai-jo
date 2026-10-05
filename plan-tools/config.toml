@@ -1,0 +1,119 @@
+# plan-tools — règles du tracé automatique des conduits (commande `route`).
+# Expressions régulières Python (module `re`), écrites en chaînes littérales TOML ('...').
+# Fichier lu par défaut ; autre fichier : variable d'environnement PLAN_TOOLS_CONFIG.
+
+[classify]
+# Rôle de chaque symbole (Counter/@Name), évalué dans l'ordre : ignore → panel → device.
+# Pas de conduit neuf : symboles à enlever (ENL, enlever, démolir, retirer) ou existants.
+# Prioritaire sur panel : « PANN 30CCT ENL » est ignoré (attention : un panneau existant
+# aussi — aucun cas réel hormis « PANN INCENDIE EXISTANT »).
+ignore = '(?i)\bENL\b|enlev|d[ée]mol|retir|exist'
+# Panneaux = points de départ des parcours. Panneaux d'alarme incendie exclus
+# (annonciateur, TCAI, incendie, alarme) ; LP / DP seulement suivis d'un numéro (LP-1, DP2).
+panel = '(?i)\bpann(eau)?\b(?!.*(annonciateur|tcai|incendie|alarme))|\bPNL\b|\bLP-?\d|\bDP-?\d|distribution|\bCDP\b|\bMCC\b|main disj'
+# Jamais panneau, même si `panel` correspond (faux positifs relevés sur les 371 fichiers réels) :
+# luminaires (FIXT…, TYPE LP1A), détecteurs (DETECTEUR DP1), alarme / feu / annonciateur
+# (PANN FEU, PANN ALARM, Pann Ann), Bell (PANN BEL), panneaux de contrôle (PANN CONTROL…),
+# CO / monoxyde, SUPPORT A PANN, poteaux « pann cam », à enlever ; « DP » seul.
+panel_exclude = '(?i)^FIXT|\bTYPE\b|DETECTEUR|\bFEU\b|\bALARM|\bANN\b|\bBELL?\b|\bENL\b|enlev|CONTROL|MONOXIDE|\bCO\b|SUPPORT|\bcam\b|^DP$'
+# Appareils : tout le reste (nom non vide).
+device = '\S'
+
+[circuit]
+# Étiquette de circuit cherchée dans Counter/@Name puis Counter/@Text (sensible à la casse).
+tag = '\b[A-Z]{1,3}-?\d{1,3}\b'
+# Sans étiquette (ou étiquette trop chargée) : regroupement par proximité, plus proche voisin
+# glouton, au plus N appareils par parcours.
+max_devices_per_run = 12
+
+[route]
+# Line existantes traitées comme conduits (nom de l'objet ou description du catalogue).
+conduit_line = '(?i)conduit'
+# Article du catalogue (Group/EEExchangeData/@Description) dont le GroupID est repris.
+conduit_group = '(?i)conduit.*3/4'
+# Deux segments parallèles à moins de N px l'un de l'autre sont « superposés ».
+overlap_tolerance_px = 4
+
+# [À CONFIRMER — Jo]
+# Fréquence des noms de Counter sur les 371 fichiers .qpl réels (« Mes projets », 2026-10-05) :
+# 9 073 noms distincts, 276 717 symboles.
+# Règles d'origine (panel = panneau|panel|DP|LP|… évalué avant ignore) :
+#   device 8 878 noms / 264 301 symboles ; ignore 185 / 12 028 ; panel 10 / 388.
+#   Faux panneaux retirés depuis : « DP » seul (111 symb., 3 fich. ; rien ne dit que ce sont des
+#   panneaux), « FIXT LP » (11 ; luminaire type LP), « PANNEAU TCAI » (16) et « PANNEAU
+#   ANNONCIATEUR PRINCIPAL » (2) (alarme incendie, pas un panneau de distribution) ;
+#   « PANNEAU CONTROL NIVELEUR / POMPE » (panneaux de contrôle). Ajouté : « PANN 100A 120/240V
+#   40CCTC/A MAIN DISJ » (72), que `panneau` ne voyait pas.
+# Règles ci-dessus (resserrées le 2026-10-05) :
+#   device 8 850 noms / 264 093 symboles ; ignore 185 / 12 028 ; panel 38 / 596.
+# Noms reconnus comme panneau (tous, symboles / fichiers) :
+#   Panneau 192/1 ; PANN 141/4 ; PANN 100A 120/240V 40CCTC/A MAIN DISJ 72/1 ; DP1 (Npp16) 55/1 ;
+#   PANNEAU REMPLACER 52/1 ; PANN PR 13/1 ; PANN 42CCT 120/208V 10/1 ; SERV DP2 10/1 ;
+#   PANN SOLAIRE 9/1 ; PANN RELO 6/2 ; RELO PANN 42CCT 120/208V 3/2 ; PANN 10 ENTRE 2/1 ;
+#   PANN 5 GRADATEUR 2/1 ; PANN HOTTE 2/2 ; PANN PDU FPA 2/1 ; PANN POMPE 2/1 ; RELO PANN 2/1 ;
+#   et 1/1 : DP2, PANN 120/208V, PANN 200A, PANN 347/600V, PANN 400A 120/208V 72CCT,
+#   PANN 400A 347/600V 30KA 16DISJ, PANN 42CCT, PANN 42CCT 347/600V, PANN D2UPS1 154,
+#   PANN DUPS1 153, PANN EXPENSION, PANN N, PANN PS 1, PANN PS-2, PANN PS-3, PANN RELAIS, PANNEAU,
+#   PANNEAU COMMUNICATEUR, RELO PANN 48CCT 120/208V, RELO PANN 66CCT 120/208V, RELO PANN LUTRON N.
+#   Douteux (panneau ?) : « SERV DP2 » (service ?), « DP1 (Npp16) » / « DP2 », « PANN SOLAIRE »,
+#   « PANN PDU FPA », « PANN HOTTE », « PANN POMPE », « PANN 5 GRADATEUR », « PANN RELAIS »,
+#   « PANNEAU COMMUNICATEUR », « PANN PR », « PANN 10 ENTRE », « RELO PANN LUTRON N ».
+#   Exclus par panel_exclude, à confirmer : « PANN BEL » (188) / « PANN BELL » (28) = Bell
+#   (télécom) ?, « PANN CONTROL » (12) et variantes, « TYPE LP1A » (52) … « TYPE LP9 ».
+#   Devenus « ignore » (ignore avant panel) : « PANN 30CCT ENL » (9), « PANN ENLEVER » (1).
+#   Non reconnus : « P1A NOUVEAU », « P1A EXIST », « P2B », « P6A NOUV » (P1000 / P1500W =
+#   plinthes, pas panneaux).
+# Top 50 (nom — symboles, fichiers — rôle) :
+#    1. PRISE                     23494 symb. 162 fich. -> device
+#    2. Compteur 1                 4582 symb.  90 fich. -> device (nom par défaut Plan Expert)
+#    3. TEL                        3878 symb.  57 fich. -> device
+#    4. INT                        3823 symb. 126 fich. -> device
+#    5. HAUT PARLEUR               3778 symb.  26 fich. -> device
+#    6. LOG INT                    2921 symb.   1 fich. -> device
+#    7. TH                         2841 symb.  40 fich. -> device
+#    8. FIXT TYPE A                2762 symb.  67 fich. -> device
+#    9. ECL                        2726 symb.   2 fich. -> device
+#   10. FIXT PL LOG                2280 symb.   1 fich. -> device
+#   11. SORTIE TEL                 2221 symb.  59 fich. -> device
+#   12. prise duplex 15A 120V      2115 symb.  19 fich. -> device
+#   13. GFI                        2089 symb.  50 fich. -> device
+#   14. FIXT TYPE L1               1928 symb.  32 fich. -> device (étiquette L1 = type de luminaire ?)
+#   15. Prise 15A                  1885 symb.   3 fich. -> device
+#   16. TETE DOUBLE                1546 symb.  84 fich. -> device
+#   17. KS                         1545 symb.   8 fich. -> device
+#   18. FIXT TYPE B                1544 symb.  50 fich. -> device
+#   19. DETECTEUR                  1455 symb.  24 fich. -> device
+#   20. ENSEIGNE SORTIE            1450 symb.  71 fich. -> device
+#   21. EXIT                       1358 symb.  81 fich. -> device
+#   22. FIXT TYPE D                1313 symb.  38 fich. -> device
+#   23. RACCORD DIRECT             1248 symb.  54 fich. -> device
+#   24. FIXT TYPE C                1227 symb.  46 fich. -> device
+#   25. EXISTANT HAUT PARLEUR      1129 symb.   1 fich. -> ignore
+#   26. EXISTANT DETECTEUR         1107 symb.   1 fich. -> ignore
+#   27. Compteur 7                 1080 symb.   6 fich. -> device
+#   28. STATION MANUEL             1071 symb.  66 fich. -> device
+#   29. Switch                     1071 symb.   2 fich. -> device
+#   30. PRISE 15/20                1059 symb.  27 fich. -> device
+#   31. Compteur 2                 1058 symb.  38 fich. -> device
+#   32. DETECTEUR FUMER            1027 symb.  26 fich. -> device
+#   33. SERPENTIN                  1010 symb.  74 fich. -> device
+#   34. KLAXON                     1004 symb.  40 fich. -> device
+#   35. GRADATEUR                   959 symb.  55 fich. -> device
+#   36. FIXT TYPE E                 956 symb.  33 fich. -> device
+#   37. L PRISE                     940 symb.   2 fich. -> device
+#   38. FIXT TYPE L-01              904 symb.   1 fich. -> device (étiquette L-01)
+#   39. prise                       896 symb.  10 fich. -> device
+#   40. tel/data                    867 symb.  20 fich. -> device
+#   41. int enl                     865 symb.   1 fich. -> ignore
+#   42. FIXT TYPE 84B               862 symb.   1 fich. -> device
+#   43. Compteur 6                  842 symb.  10 fich. -> device
+#   44. AF1                         837 symb.   1 fich. -> device (étiquette AF1)
+#   45. STROB                       823 symb.  19 fich. -> device
+#   46. FIXT TYPE A1                800 symb.  15 fich. -> device (étiquette A1)
+#   47. THERMOSTAT                  781 symb.  11 fich. -> device
+#   48. FIXT TYPE L3                772 symb.  22 fich. -> device (étiquette L3)
+#   49. HORN                        760 symb.  36 fich. -> device
+#   50. B1000W                      758 symb.   6 fich. -> device
+# Autres noms ignorés fréquents : 2X4 ENL (686), fixt enl (534), FIXT ENL (461), PRISE ENL (425),
+#   Fixt à enlever (363), EXISTANT MIA (176), EXISTANT MRA (120) …
+# Noms purement numériques (« 15 », « 52171 », « 286 » …, 2 380 symboles) : laissés en device.

@@ -1,0 +1,12 @@
+{
+    "configuredAt": "2026-02-26T17:01:49.971Z",
+    "team": {
+        "maxAgents": 5,
+        "defaultAgentType": "executor",
+        "monitorIntervalMs": 30000,
+        "shutdownTimeoutMs": 15000
+    },
+    "setupCompleted": "2026-03-03T08:24:00.000Z",
+    "setupVersion": "v5.1.0",
+    "nodeBinary": "%USERPROFILE%\\AppData\\Local\\mise\\shims\\node.exe"
+}

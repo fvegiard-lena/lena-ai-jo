@@ -1,0 +1,5 @@
+# Config gitleaks : regles par defaut, aucune exception (docs/ compris : le repo est public).
+title = "lena-ai-jo"
+
+[extend]
+useDefault = true

@@ -1,0 +1,39 @@
+[project]
+name = "code-rag"
+version = "0.1.0"
+description = "Recherche citée dans les codes électriques et références d'estimation (PDF locaux → Ollama → Qdrant)."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28.1",
+    "pymupdf>=1.28.2",
+    # Serveur Qdrant local = 1.17 : le client doit rester à ±1 version mineure.
+    "qdrant-client>=1.17.1,<1.19",
+    "typer>=0.27.2",
+]
+
+[project.scripts]
+code-rag = "code_rag.cli:app"
+
+[build-system]
+requires = ["uv_build>=0.12.23,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.10",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: nécessite Qdrant (localhost:6333) et Ollama (qwen3-embedding:8b) en marche",
+]

@@ -1,0 +1,2 @@
+# Les fixtures .qpl doivent rester octet pour octet (BOM + CRLF)
+*.qpl -text

@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# gitleaks-action lit la liste des commits d'une PR : pull-requests en lecture suffit.
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # gitleaks scanne tout l'historique
+
+      - name: Gitleaks (secrets)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+      - name: JSON valides (config/)
+        if: hashFiles('config/**/*.json') != ''
+        run: find config -name '*.json' -print0 | xargs -0 -t -n1 python3 -m json.tool > /dev/null
+
+      - name: Installer uv
+        if: hashFiles('plan-tools/pyproject.toml', 'code-rag/pyproject.toml') != ''
+        uses: astral-sh/setup-uv@v6
+
+      # --locked : echoue si uv.lock n'est plus a jour avec pyproject.toml
+      - name: plan-tools - uv sync
+        if: hashFiles('plan-tools/pyproject.toml') != ''
+        run: uv sync --locked --project plan-tools
+
+      - name: plan-tools - ruff
+        if: hashFiles('plan-tools/pyproject.toml') != ''
+        run: uv run --project plan-tools ruff check plan-tools
+
+      - name: plan-tools - pytest
+        if: hashFiles('plan-tools/pyproject.toml') != ''
+        run: uv run --project plan-tools pytest -q plan-tools
+
+      - name: code-rag - uv sync
+        if: hashFiles('code-rag/pyproject.toml') != ''
+        run: uv sync --locked --project code-rag
+
+      - name: code-rag - ruff
+        if: hashFiles('code-rag/pyproject.toml') != ''
+        run: uv run --project code-rag ruff check code-rag
+
+      # Les tests "integration" demandent Qdrant + Ollama : seulement en local.
+      - name: code-rag - pytest (unitaires)
+        if: hashFiles('code-rag/pyproject.toml') != ''
+        run: uv run --project code-rag pytest -q -m "not integration" code-rag
+
+      - name: Biome
+        if: hashFiles('**/biome.json') != ''
+        run: npx --yes @biomejs/biome ci .

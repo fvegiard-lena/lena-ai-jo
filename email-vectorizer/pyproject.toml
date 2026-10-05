@@ -1,0 +1,28 @@
+[project]
+name = "email-vectorizer"
+version = "0.1.0"
+description = "Courriels Outlook -> embeddings Ollama (qwen3-embedding:8b) -> Qdrant, + serveur MCP email-search."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "qdrant-client",
+    "pywin32; sys_platform == 'win32'",
+    "tqdm",
+    "mcp>=2.3.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.10",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

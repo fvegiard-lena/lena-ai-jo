@@ -1,0 +1,29 @@
+[tools]
+go = "latest"
+node = "lts"
+uv = "latest"
+opa = "latest"
+
+[tools."npm:@biomejs/biome"]
+version = "latest"
+
+# Outils npm gérés par mise (sinon ils disparaissent à chaque mise à jour de node)
+[tools."npm:@wonderwhy-er/desktop-commander"]
+version = "latest"
+
+[tools."npm:promptfoo"]
+version = "latest"
+
+
+# Serveurs LSP (utilisés par les plugins Claude Code pyright/ts-lsp)
+[tools."npm:typescript"]
+version = "latest"
+
+[tools."npm:typescript-language-server"]
+version = "latest"
+
+[tools."npm:vscode-langservers-extracted"]
+version = "latest"
+
+[tools."npm:yaml-language-server"]
+version = "latest"

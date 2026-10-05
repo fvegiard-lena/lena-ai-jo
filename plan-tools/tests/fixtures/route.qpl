@@ -1,0 +1,107 @@
+﻿<?xml version="1.0"?>
+<QuoterPlanSession>
+	<Project Name="S-9998">
+		<Description>Projet test tracé &amp; conduits</Description>
+		<ContactName></ContactName>
+		<CreationDate>2025/7/2</CreationDate>
+	</Project>
+	<Workspace>
+		<ActivePlan Name="Plan A - RDC"/>
+	</Workspace>
+	<Plans>
+		<Group GroupID="100">
+			<EEExchangeData ItemType="A" ItemID="ENS0000000000000100" Name="conduit 1 03c08" Key="19PE1 #08" PersonalKey="19PE1 #08" Description="conduit 1 03c08"/>
+		</Group>
+		<Group GroupID="97">
+			<EEExchangeData ItemType="A" ItemID="ENS0000000000000097" Name="conduit 3/4 03c12" Key="19PE0.75 #12" PersonalKey="19PE0.75 #12" Description="conduit 3/4 03c12"/>
+		</Group>
+		<Plan Name="Plan A - RDC" FileName="Plan A.png">
+			<Thumbnail FileName="00000000-0000-0000-0000-000000000000"/>
+			<Scale Value="0.09375" Type="1" Precision="2" SetManually="False" Engineering="False"/>
+			<Bookmarks>
+				<Bookmark Name="Default" LayerIndex="0" Zoom="-1" X="0" Y="0"/>
+			</Bookmarks>
+			<Comment></Comment>
+			<Layers>
+				<Layer Index="0" Name="Calque par défaut" Opacity="150" Visible="True" Active="True">
+					<Legend Name="Légende" X="100" Y="100" FontSize="45" MaxRows="25" Color="-657931" PenWidth="6" PenType="Generic" FillColor="-657931" ShowMeasure="True" Visible="True"/>
+					<Counter Name="PANNEAU A" GroupID="60" Shape="0" DefaultSize="20" Text="1" Color="-65536" PenWidth="2" PenType="Generic" FillColor="-65536" ShowMeasure="True" Visible="True">
+						<Element X="90" Y="90" Width="20" Height="20"/>
+					</Counter>
+					<Counter Name="PRISE" GroupID="4" Shape="0" DefaultSize="16" Text="1" Color="-65536" PenWidth="2" PenType="Generic" FillColor="-65536" ShowMeasure="True" Visible="True">
+						<Element X="192" Y="192" Width="16" Height="16"/>
+						<Element X="292" Y="192" Width="16" Height="16"/>
+						<Element X="392" Y="192" Width="16" Height="16"/>
+						<Element X="492" Y="192" Width="16" Height="16"/>
+						<Element X="592" Y="192" Width="16" Height="16"/>
+						<Element X="692" Y="192" Width="16" Height="16"/>
+						<Element X="792" Y="192" Width="16" Height="16"/>
+						<Element X="892" Y="192" Width="16" Height="16"/>
+						<Element X="992" Y="192" Width="16" Height="16"/>
+						<Element X="1092" Y="192" Width="16" Height="16"/>
+						<Element X="1192" Y="192" Width="16" Height="16"/>
+						<Element X="1292" Y="192" Width="16" Height="16"/>
+						<Element X="1392" Y="192" Width="16" Height="16"/>
+						<Element X="1492" Y="192" Width="16" Height="16"/>
+					</Counter>
+					<Counter Name="FIXT TYPE L1" GroupID="30" Shape="0" DefaultSize="24" Text="1" Color="-65536" PenWidth="2" PenType="Generic" FillColor="-65536" ShowMeasure="True" Visible="True">
+						<Element X="2988" Y="388" Width="24" Height="24"/>
+						<Element X="3188" Y="388" Width="24" Height="24"/>
+						<Element X="3388" Y="438" Width="24" Height="24"/>
+					</Counter>
+					<Counter Name="PRISE ENL" GroupID="5" Shape="0" DefaultSize="20" Text="1" Color="-65536" PenWidth="2" PenType="Generic" FillColor="-65536" ShowMeasure="True" Visible="True">
+						<Element X="3990" Y="90" Width="20" Height="20"/>
+						<Element X="4090" Y="90" Width="20" Height="20"/>
+					</Counter>
+					<Counter Name="PRISE CACHEE" GroupID="6" Shape="0" DefaultSize="20" Text="1" Color="-65536" PenWidth="2" PenType="Generic" FillColor="-65536" ShowMeasure="True" Visible="False">
+						<Element X="4490" Y="290" Width="20" Height="20"/>
+					</Counter>
+					<Line Name="conduit 3/4 03c12" GroupID="97" Color="-7667712" PenWidth="1" PenType="Generic" ShowMeasure="False" Visible="True">
+						<Element X1="100" Y1="100" X2="100" Y2="300" />
+						<Element X1="100" Y1="300" X2="900" Y2="300" />
+					</Line>
+					<Line Name="Distance 1" GroupID="75" Color="-7667712" PenWidth="1" PenType="Generic" ShowMeasure="False" Visible="False">
+						<Element X1="0" Y1="0" X2="50" Y2="0" />
+					</Line>
+				</Layer>
+				<Layer Index="1" Name="Nouveau calque 1" Opacity="150" Visible="True" Active="False">
+				</Layer>
+			</Layers>
+		</Plan>
+		<Plan Name="Plan B - L&apos;étage" FileName="Plan B.png">
+			<Thumbnail FileName="00000000-0000-0000-0000-000000000000"/>
+			<Scale Value="0" Type="1" Precision="2" SetManually="False" Engineering="False"/>
+			<Bookmarks>
+				<Bookmark Name="Default" LayerIndex="0" Zoom="-1" X="0" Y="0"/>
+			</Bookmarks>
+			<Comment></Comment>
+			<Layers>
+				<Layer Index="0" Name="Calque par défaut" Opacity="150" Visible="True" Active="True">
+					<Counter Name="GFI" GroupID="7" Shape="0" DefaultSize="21" Text="1" Color="-65536" PenWidth="2" PenType="Generic" FillColor="-65536" ShowMeasure="True" Visible="True">
+						<Element X="490" Y="490" Width="21" Height="21"/>
+						<Element X="890" Y="490" Width="21" Height="21"/>
+						<Element X="890" Y="890" Width="21" Height="21"/>
+					</Counter>
+				</Layer>
+			</Layers>
+		</Plan>
+		<Plan Name="Plan C - Vide" FileName="Plan C.png">
+			<Thumbnail FileName="00000000-0000-0000-0000-000000000000"/>
+			<Scale Value="0" Type="1" Precision="2" SetManually="False" Engineering="False"/>
+			<Bookmarks>
+				<Bookmark Name="Default" LayerIndex="0" Zoom="-1" X="0" Y="0"/>
+			</Bookmarks>
+			<Comment></Comment>
+			<Layers>
+				<Layer Index="0" Name="Calque par défaut" Opacity="150" Visible="True" Active="True">
+					<Rectangle Name="Marqueur 1" X="10" Y="10" Width="20" Height="20" Color="-256" PenWidth="3" PenType="Generic" FillColor="-256" ShowMeasure="True" Visible="True"/>
+				</Layer>
+				<Layer Index="1" Name="Nouveau calque 1" Opacity="150" Visible="True" Active="False">
+				</Layer>
+			</Layers>
+		</Plan>
+	</Plans>
+	<Prices>
+		<Price Key="97;;Line;" CostEach="0" MarkupEach="0" SystemType="2"/>
+	</Prices>
+</QuoterPlanSession>

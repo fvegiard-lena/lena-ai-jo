@@ -1,0 +1,95 @@
+﻿<?xml version="1.0"?>
+<QuoterPlanSession>
+	<Project Name="S-9999">
+		<Description>Projet test &amp; démo</Description>
+		<ContactName></ContactName>
+		<ContactInfo></ContactInfo>
+		<JobNumber></JobNumber>
+		<Comment></Comment>
+		<CreationDate>2025/7/2</CreationDate>
+		<LastModified>2025/7/3</LastModified>
+		<DisplayResultsForAllPlans>False</DisplayResultsForAllPlans>
+	</Project>
+	<Workspace>
+		<ActivePlan Name="Plan A - RDC"/>
+		<RecentPlans>
+			<Plan Name="Plan A - RDC"/>
+			<Plan Name="Plan B - L&apos;étage &amp; toit"/>
+		</RecentPlans>
+	</Workspace>
+	<Plans>
+		<Group GroupID="97">
+			<EEExchangeData ItemType="A" ItemID="ENSCFFFDBD5146159B90" Name="conduit 3/4 03c12" Key="19PE0.75 #12" PersonalKey="19PE0.75 #12" Description="conduit 3/4 03c12"/>
+		</Group>
+		<Plan Name="Plan A - RDC" FileName="Plan A - RDC.png">
+			<Thumbnail FileName="7aca3e72-8cd1-436f-8829-00a11db70cce"/>
+			<Scale Value="0" Type="1" Precision="2" SetManually="False" Engineering="False"/>
+			<Bookmarks>
+				<Bookmark Name="Default" LayerIndex="0" Zoom="41" X="2848" Y="3577"/>
+			</Bookmarks>
+			<Comment></Comment>
+			<Layers>
+				<Layer Index="0" Name="Calque par défaut" Opacity="150" Visible="True" Active="True">
+					<Counter Name="ET PRISE" GroupID="27" Shape="0" DefaultSize="24" Text="1" Color="-10496" PenWidth="2" PenType="Generic" FillColor="-10496" ShowMeasure="True" Visible="True">
+						<Element X="2973" Y="4100" Width="24" Height="24"/>
+						<Element X="3100" Y="4100" Width="24" Height="24"/>
+					</Counter>
+					<Line Name="conduit 3/4 03c12" GroupID="97" Color="-7667712" PenWidth="1" PenType="Generic" ShowMeasure="False" Visible="True">
+						<Element X1="0" Y1="0" X2="300" Y2="0" />
+						<Element X1="300" Y1="0" X2="300" Y2="400" />
+						<Element X1="300" Y1="400" X2="0" Y2="0" />
+					</Line>
+					<Area Name="Surface 1" GroupID="73" Color="-8388864" PenWidth="4" PenType="Generic" FillColor="-8388864" Pattern="-1" ShowMeasure="False" Visible="True">
+						<Element>
+							<Point X="1000" Y="1000"/>
+							<Point X="1100" Y="1000"/>
+							<Point X="1100" Y="1100"/>
+							<Point X="1000" Y="1100"/>
+						</Element>
+					</Area>
+					<Rectangle Name="Marqueur 1" X="1755" Y="2758" Width="249" Height="397" Color="-256" PenWidth="3" PenType="Generic" FillColor="-256" ShowMeasure="True" Visible="True"/>
+					<Legend Name="Légende" X="100" Y="100" FontSize="45" MaxRows="25" Color="-657931" PenWidth="6" PenType="Generic" FillColor="-657931" ShowMeasure="True" Visible="True"/>
+				</Layer>
+				<Layer Index="1" Name="Nouveau calque 1" Opacity="150" Visible="True" Active="False">
+				</Layer>
+			</Layers>
+		</Plan>
+		<Plan Name="Plan B - L&apos;étage &amp; toit" FileName="Plan B.png">
+			<Thumbnail FileName="190a9f92-768c-4499-914d-7fb5ed724266"/>
+			<Scale Value="0.09375" Type="1" Precision="2" SetManually="False" Engineering="False"/>
+			<Bookmarks>
+				<Bookmark Name="Default" LayerIndex="0" Zoom="-1" X="0" Y="0"/>
+			</Bookmarks>
+			<Comment></Comment>
+			<Layers>
+				<Layer Index="0" Name="Calque par défaut" Opacity="150" Visible="True" Active="True">
+					<Line Name="conduit 1 03c08" GroupID="100" Color="-16776961" PenWidth="1" PenType="Generic" ShowMeasure="False" Visible="True">
+						<Element X1="0" Y1="0" X2="600" Y2="800" />
+					</Line>
+					<Perimeter Name="Périmètre 1" GroupID="146" Color="-8388480" PenWidth="3" PenType="Generic" ShowMeasure="True" Visible="True">
+						<Element Closed="False">
+							<Point X="0" Y="0"/>
+							<Point X="0" Y="100"/>
+							<Point X="100" Y="100"/>
+						</Element>
+					</Perimeter>
+					<Note Name="Note 1" X="1499" Y="2535" Width="238" Height="81" AnchorX="1565" AnchorY="2637" FontSize="32" Color="-989556" PenWidth="3" PenType="Generic" FillColor="-989556" ShowMeasure="True" Visible="True">
+						<Comment>POMPE A FEU</Comment>
+					</Note>
+				</Layer>
+				<Layer Index="1" Name="Nouveau calque 1" Opacity="150" Visible="True" Active="False">
+				</Layer>
+			</Layers>
+		</Plan>
+	</Plans>
+	<Prices>
+		<Price Key="27;;Counter;" CostEach="0" MarkupEach="0" SystemType="2"/>
+		<Price Key="97;;Line;" CostEach="0" MarkupEach="0" SystemType="2"/>
+	</Prices>
+	<Reports>
+		<Report Name="Default" Order="1" ScaleType="1" Precision="2">
+			<Property Name="ShowProjectInfo" Value="True"/>
+			<Property Name="OrderByObjectsFilter" Value=""/>
+		</Report>
+	</Reports>
+</QuoterPlanSession>

@@ -1,0 +1,7 @@
+# PDF achetés (CSA, NECA, National Estimator) : droits d'auteur, restent en local.
+data/
+
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
