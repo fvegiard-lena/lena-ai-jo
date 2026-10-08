@@ -25,6 +25,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
 
+      # AGENTS.md (ChatGPT / Codex) doit rester identique a docs/LENA.md (Claude),
+      # et .agents/skills (Codex) identique a .claude/skills (Claude).
+      - name: Parite Claude / ChatGPT (AGENTS.md, skills)
+        run: |
+          sed -n '/^<!-- LENA:START -->$/,/^<!-- LENA:END -->$/p' AGENTS.md | sed '1d;$d' | diff -u docs/LENA.md -
+          diff -ru .claude/skills .agents/skills
+
       - name: JSON valides (config/)
         if: hashFiles('config/**/*.json') != ''
         run: find config -name '*.json' -print0 | xargs -0 -t -n1 python3 -m json.tool > /dev/null
