@@ -39,7 +39,6 @@
     "coworkHipaaRestricted": false,
     "orgWorkAcrossAppsDisabled": false,
     "ccdScheduledTasksEnabled": true,
-    "earlyWindowShowLatched": true,
     "storeReadCacheLatched": true,
     "windowsAppJobLatched": true,
     "sidebarMode": "chat",
@@ -159,6 +158,21 @@
       "epitaxy-default-transcript-view-nudge": {
         "verbose": "b33960b6"
       }
+    },
+    "remoteSessionFolderGrants": {
+      "session_015vETVf1d4JMWgCH3ZWzdha": [
+        {
+          "display": "S:\\Soumission\\Soumission 2026\\s-1904 ville de varenne prevert trouble",
+          "unc": "\\\\dre-bou-fs-01\\Commun\\Soumission\\Soumission 2026\\s-1904 ville de varenne prevert trouble",
+          "letter": "S"
+        }
+      ],
+      "session_01Wy4wVS3Me9cMuUSBwaDfxB": [
+        "%USERPROFILE%\\BR_EP2026-082"
+      ],
+      "session_016apfeEKgd35xHkLs3uqGFV": [
+        "%USERPROFILE%\\S-1905_cegep"
+      ]
     }
   }
 }
