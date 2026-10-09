@@ -145,8 +145,8 @@ if (-not $hasNode -and $install -and $hasMise) {
 }
 # Les shims mise (node, uv...) doivent etre sur le PATH utilisateur, sinon les sessions lancees par le lanceur
 # ne les voient pas (RUNBOOK section 5). Ajoute une fois, idempotent.
-$shims = Join-Path $env:LOCALAPPDATA 'mise\shims'
-if ($IsWindows -and (Test-Path $shims)) {
+$shims = if ($IsWindows -and $env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'mise\shims' } else { $null }
+if ($shims -and (Test-Path $shims)) {
     $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
     $present = @(($userPath -split ';') | Where-Object { $_ }) -contains $shims
     if (-not $present -and $PSCmdlet.ShouldProcess('PATH utilisateur', "ajouter $shims")) {
