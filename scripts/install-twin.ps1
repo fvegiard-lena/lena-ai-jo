@@ -143,6 +143,20 @@ if (-not $hasNode -and $install -and $hasMise) {
         Update-Path; $hasNode = Test-Tool 'node' $false 'mise use -g node@lts a echoue'
     }
 }
+# Les shims mise (node, uv...) doivent etre sur le PATH utilisateur, sinon les sessions lancees par le lanceur
+# ne les voient pas (RUNBOOK section 5). Ajoute une fois, idempotent.
+$shims = Join-Path $env:LOCALAPPDATA 'mise\shims'
+if ($IsWindows -and (Test-Path $shims)) {
+    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $present = @(($userPath -split ';') | Where-Object { $_ }) -contains $shims
+    if (-not $present -and $PSCmdlet.ShouldProcess('PATH utilisateur', "ajouter $shims")) {
+        [Environment]::SetEnvironmentVariable('Path', ((@($userPath, $shims) | Where-Object { $_ }) -join ';'), 'User')
+        Update-Path
+        $present = $true
+    }
+    Add-Check 'PATH utilisateur : shims mise' ($present -or $WhatIfPreference) $shims $false
+}
+
 $hasClaude = Test-Tool 'claude' $false 'installateur natif : irm https://claude.ai/install.ps1 | iex'
 if (-not $hasClaude -and $install) {
     # Installateur officiel Claude Code (Windows) : https://code.claude.com/docs/en/setup
@@ -203,7 +217,9 @@ foreach ($b in $Branch) {
         $cloneArgs += @($Remote, $dir)
         $ok = Invoke-Native "$b : git clone" 'git' $cloneArgs
     }
-    if (-not $ok) { continue }
+    # Clone rate : rien a faire. Fetch/pull rate sur un jumeau existant : deja signale, on continue quand meme
+    # (CLAUDE.local.md, dossier de config, lanceur restent utiles hors ligne).
+    if (-not $ok -and -not (Test-Path $gitDir)) { continue }
     $twins += [pscustomobject]@{ Branch = $b; Dir = $dir }
 
     # Sous -WhatIf, un clone n'a pas eu lieu : les etapes qui lisent le depot sont sautees.
@@ -241,10 +257,12 @@ foreach ($b in $Branch) {
     $compte = Get-Compte $b
     $safe = ($b -replace '[^A-Za-z0-9._-]', '-')
     $launcher = Join-Path $Root ("lena-" + $safe + '.cmd')
+    $remCompte = if ($SharedLogin) { 'compte Claude deja connecte sur ce PC (-SharedLogin)' } else { 'compte Claude : ' + $compte.Compte }
     $lines = @(
         '@echo off',
-        ('rem Jumeau Lena ' + $b + ' - compte Claude : ' + $compte.Compte + ' (genere par install-twin.ps1, regenere a chaque passage)'),
-        'set "DISABLE_AUTOUPDATER=1"'
+        ('rem Jumeau Lena ' + $b + ' - ' + $remCompte + ' (genere par install-twin.ps1, regenere a chaque passage)'),
+        'set "DISABLE_AUTOUPDATER=1"',
+        'where claude >nul 2>&1 || (echo [jumeau] Claude Code introuvable : irm https://claude.ai/install.ps1 ^| iex, puis rouvrir le terminal. & pause & exit /b 1)'
     )
     if (-not $SharedLogin) {
         $cfgName = '.claude-' + $compte.Cle
@@ -308,7 +326,15 @@ foreach ($b in $Branch) {
     } else {
         $lines += 'rem -SharedLogin : compte Claude deja connecte sur ce PC (pas de CLAUDE_CONFIG_DIR)'
     }
-    $lines += @(('cd /d "' + $dir + '"'), 'claude %*', 'exit /b %ERRORLEVEL%')
+    # Le jumeau est a cote du lanceur (%~dp0 = dossier du lanceur) : le lanceur reste valable si <Root> est deplace
+    # et ne depend pas de l'encodage du chemin (nom du jumeau ASCII par construction).
+    $lines += @(
+        ('cd /d "%~dp0lena-' + $safe + '" || (echo [jumeau] Dossier lena-' + $safe + ' introuvable a cote du lanceur : relancer install-twin.ps1. & pause & exit /b 1)'),
+        'claude %*',
+        'rem Double-clic (sans argument) : laisser lire le message avant que la fenetre se ferme. Jamais en usage scripte.',
+        'if errorlevel 1 if "%~1"=="" pause',
+        'exit /b %ERRORLEVEL%'
+    )
     if (-not $SharedLogin) {
         $lines += @(
             ':heberge',

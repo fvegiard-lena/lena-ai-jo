@@ -18,7 +18,7 @@ modifier `docs/LENA.md`, puis recopier la section ici. Ne rien modifier sous `LE
 
 ## Git (ce repo)
 
-- Travail sur la branche **`Estimateur-2`**. Jamais de push direct sur `main` : PR vers `main`.
+- Travail sur la branche du checkout courant (`main` chez Jo ; `francis-dev`, `Estimateur-2` ou `estimateur-junior` dans un jumeau, table RUNBOOK §11). Jamais de push direct sur `main` : PR vers `main`.
 - Code, noms de fichiers et messages de commit en anglais ; réponses à Jo en français québécois.
 
 <!-- LENA:START -->

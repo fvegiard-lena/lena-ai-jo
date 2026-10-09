@@ -5,10 +5,9 @@ description: Inventaire, bordereau (BOM) et tracé IA des conduits d'un projet P
 
 # plan-qpl — inventaire / bordereau / tracé des conduits Plan Expert
 
-Outil : `%USERPROFILE%\dev\lena-ai-jo\plan-tools`. Les `.qpl` d'origine ne sont jamais modifiés ;
+Outil : `plan-tools` du checkout courant (`lena-ai-jo` ou un jumeau, RUNBOOK §11). Les `.qpl` d'origine ne sont jamais modifiés ;
 le tracé IA est écrit dans une copie `<nom> - IA.qpl`.
-Commandes : **PowerShell (pwsh)** — `$env:USERPROFILE` y est développé ; en Git Bash, remplacer
-`"$env:USERPROFILE\dev\…"` par `~/dev/…`.
+Commandes : depuis la racine du checkout (le dossier de travail de Claude Code), en PowerShell ou Git Bash.
 
 ## Étapes — inventaire / bordereau
 
@@ -16,8 +15,8 @@ Commandes : **PowerShell (pwsh)** — `$env:USERPROFILE` y est développé ; en 
    ambigu, demander à Jo le code exact — ne pas deviner.
 2. **Générer l'inventaire puis le bordereau** (sortie par défaut dans `%LOCALAPPDATA%`) :
    ```powershell
-   uv run --project "$env:USERPROFILE\dev\lena-ai-jo\plan-tools" plan-tools inventory S-0723
-   uv run --project "$env:USERPROFILE\dev\lena-ai-jo\plan-tools" plan-tools bom S-0723
+   uv run --project plan-tools plan-tools inventory S-0723
+   uv run --project plan-tools plan-tools bom S-0723
    ```
    Chaque commande affiche les chemins des fichiers créés (`CSV : …`). Si l'outil répond
    « Aucun dossier », transmettre le message tel quel à Jo. S'il affiche « Plusieurs dossiers
@@ -42,8 +41,8 @@ Commandes : **PowerShell (pwsh)** — `$env:USERPROFILE` y est développé ; en 
    passer à `--plan`.
 2. **Lancer le tracé** :
    ```powershell
-   uv run --project "$env:USERPROFILE\dev\lena-ai-jo\plan-tools" plan-tools route S-0723
-   uv run --project "$env:USERPROFILE\dev\lena-ai-jo\plan-tools" plan-tools route S-0723 --plan "R1 - 10"
+   uv run --project plan-tools plan-tools route S-0723
+   uv run --project plan-tools plan-tools route S-0723 --plan "R1 - 10"
    ```
    La commande affiche 3 lignes (plans tracés, longueur, chemins). Si elle répond « existe déjà »,
    un tracé précédent est présent : demander à Jo avant de relancer avec `--force`. Si elle répond
