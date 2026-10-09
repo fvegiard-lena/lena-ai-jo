@@ -1,16 +1,23 @@
 #Requires -Version 7.2
 # Installe (ou met a jour) un jumeau de Lena sur ce PC : un checkout du repo par branche,
-# a cote de lena-ai-jo, avec les outils et les dependances verifies.
-#   francis-dev        -> %USERPROFILE%\dev\lena-francis-dev        (Francis)
-#   Estimateur-2       -> %USERPROFILE%\dev\lena-Estimateur-2       (estimateur 2 : compte lena.ai.dr.routeur@gmail.com pour le moment)
-#   estimateur-junior  -> %USERPROFILE%\dev\lena-estimateur-junior  (les autres estimateurs)
+# a cote de lena-ai-jo, avec les outils et les dependances verifies, un dossier de config
+# Claude Code par compte et un lanceur par jumeau.
+#   francis-dev        -> <Root>\lena-francis-dev        (Francis : compte fvegiard@gmail.com, config .claude-francis)
+#   Estimateur-2       -> <Root>\lena-Estimateur-2       (estimateur 2 : compte lena.ai.dr.routeur@gmail.com, config .claude-routeur)
+#   estimateur-junior  -> <Root>\lena-estimateur-junior  (les autres estimateurs : meme compte que l'estimateur 2 pour le moment)
+# <Root> = %USERPROFILE%\dev par defaut (-Root pour le changer, ex. -Root D:\github sur le PC de Francis).
 # Chaque jumeau recoit un CLAUDE.local.md (ignore par git, jamais reecrit s'il existe) qui importe
 # docs\LENA.md : Claude Code lance dans ce dossier suit les regles de Lena et trouve les skills.
+# Chaque compte recoit son dossier de config Claude Code (%USERPROFILE%\.claude-<cle>, login separe du
+# compte principal du PC) ; le lanceur <Root>\lena-<branche>.cmd pose CLAUDE_CONFIG_DIR, va dans le
+# jumeau et lance claude. Premiere fois : /login avec le compte du jumeau. -SharedLogin : pas de
+# dossier separe, le jumeau roule sous le compte deja connecte sur ce PC (ancien comportement).
 # Usage : pwsh -File scripts\install-twin.ps1 [-Branch francis-dev,Estimateur-2,estimateur-junior]
-#                                             [-Root "$env:USERPROFILE\dev"] [-SkipTests] [-NoInstall] [-WhatIf]
-# Pas besoin d'admin. Idempotent : relancer met a jour (git pull --ff-only), ne refait pas le clone.
+#         [-Root "$env:USERPROFILE\dev"] [-SkipTests] [-NoInstall] [-SharedLogin] [-WhatIf]
+# Pas besoin d'admin. Idempotent : relancer met a jour (git pull --ff-only), ne refait pas le clone,
+# ne reecrit ni CLAUDE.local.md ni le settings.json du dossier de config ; le lanceur est regenere.
 # Outil manquant -> installe (winget / mise / installateur Claude Code), sauf avec -NoInstall.
-# Ne touche jamais au checkout principal (lena-ai-jo) ni aux taches planifiees.
+# Ne touche jamais au checkout principal (lena-ai-jo), ni a %USERPROFILE%\.claude, ni aux taches planifiees.
 # -WhatIf : montre tout, n'ecrit rien (ni clone, ni config git, ni fichier, ni installation).
 [CmdletBinding(SupportsShouldProcess)]
 param(
@@ -18,7 +25,8 @@ param(
     [string]$Root = (Join-Path $env:USERPROFILE 'dev'),
     [string]$Remote = 'https://github.com/fvegiard-lena/lena-ai-jo.git',
     [switch]$SkipTests,
-    [switch]$NoInstall
+    [switch]$NoInstall,
+    [switch]$SharedLogin
 )
 
 $ErrorActionPreference = 'Stop'
@@ -29,6 +37,18 @@ $env:GIT_TERMINAL_PROMPT = '0'
 $Branch = @($Branch | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 # Chemin absolu : [IO.File] ne suit pas le dossier courant de PowerShell.
 $Root = [IO.Path]::GetFullPath($Root, $PWD.ProviderPath)
+
+# Compte Claude de chaque jumeau (decision de Francis, 2026-10-09) et cle du dossier de config
+# %USERPROFILE%\.claude-<cle>. Deux branches avec la meme cle partagent le meme login.
+$script:comptes = @{
+    'francis-dev'       = @{ Compte = 'fvegiard@gmail.com';           Cle = 'francis' }
+    'Estimateur-2'      = @{ Compte = 'lena.ai.dr.routeur@gmail.com'; Cle = 'routeur' }
+    'estimateur-junior' = @{ Compte = 'lena.ai.dr.routeur@gmail.com'; Cle = 'routeur' }
+}
+function Get-Compte([string]$b) {
+    if ($script:comptes.ContainsKey($b)) { return $script:comptes[$b] }
+    return @{ Compte = '[A CONFIRMER - Francis]'; Cle = ($b.ToLowerInvariant() -replace '[^a-z0-9]', '-') }
+}
 
 $script:checks = [System.Collections.Generic.List[object]]::new()
 function Add-Check([string]$Name, [bool]$Ok, [string]$Detail = '', [bool]$Required = $true) {
@@ -212,6 +232,55 @@ foreach ($b in $Branch) {
         Add-Check "$b : CLAUDE.local.md" ((Test-Path $local) -or $WhatIfPreference) $local
     }
 
+    # Dossier de config Claude Code du compte du jumeau (login separe de %USERPROFILE%\.claude)
+    # et lanceur <Root>\lena-<branche>.cmd qui pose CLAUDE_CONFIG_DIR puis lance claude dans le jumeau.
+    $compte = Get-Compte $b
+    $safe = ($b -replace '[^A-Za-z0-9._-]', '-')
+    $launcher = Join-Path $Root ("lena-" + $safe + '.cmd')
+    $lines = @('@echo off', ('rem Jumeau Lena ' + $b + ' - compte Claude : ' + $compte.Compte + ' (genere par install-twin.ps1, regenere a chaque passage)'))
+    if (-not $SharedLogin) {
+        $cfgName = '.claude-' + $compte.Cle
+        $cfg = Join-Path $env:USERPROFILE $cfgName
+        if (-not (Test-Path $cfg)) {
+            if ($PSCmdlet.ShouldProcess($cfg, 'creer le dossier de config Claude Code')) {
+                New-Item -ItemType Directory -Path $cfg -Force | Out-Null
+            }
+        }
+        Add-Check "$b : dossier de config" ((Test-Path $cfg) -or $WhatIfPreference) "$cfg (compte $($compte.Compte))"
+        # settings.json : meme source pour tous les jumeaux (config\claude\settings.json du repo), sans ce qui
+        # est propre a un PC (statusLine, enabledPlugins). Jamais reecrit s'il existe : reglages de la personne.
+        $seed = Join-Path $dir 'config' 'claude' 'settings.json'
+        $dst = Join-Path $cfg 'settings.json'
+        if (Test-Path $dst) {
+            Add-Check "$b : settings.json" $true "$dst (existant, conserve)" $false
+        } elseif (Test-Path $seed) {
+            try {
+                $obj = Get-Content -Raw -Path $seed | ConvertFrom-Json
+                foreach ($k in @('statusLine', 'enabledPlugins')) {
+                    if ($obj.PSObject.Properties[$k]) { $obj.PSObject.Properties.Remove($k) }
+                }
+                if ($PSCmdlet.ShouldProcess($dst, 'ecrire settings.json (depuis config\claude\settings.json du repo)')) {
+                    [IO.File]::WriteAllText($dst, ($obj | ConvertTo-Json -Depth 20), [Text.UTF8Encoding]::new($false))
+                }
+                Add-Check "$b : settings.json" ((Test-Path $dst) -or $WhatIfPreference) $dst $false
+            } catch {
+                Add-Check "$b : settings.json" $false "$_" $false
+            }
+        } elseif ($WhatIfPreference) {
+            Add-Check "$b : settings.json" $true 'WhatIf' $false
+        } else {
+            Add-Check "$b : settings.json" $false 'pas de config\claude\settings.json dans le jumeau' $false
+        }
+        $lines += ('set "CLAUDE_CONFIG_DIR=%USERPROFILE%\' + $cfgName + '"')
+    } else {
+        $lines += 'rem -SharedLogin : compte Claude deja connecte sur ce PC (pas de CLAUDE_CONFIG_DIR)'
+    }
+    $lines += @(('cd /d "' + $dir + '"'), 'claude %*')
+    if ($PSCmdlet.ShouldProcess($launcher, 'ecrire le lanceur')) {
+        [IO.File]::WriteAllText($launcher, (($lines -join "`r`n") + "`r`n"), [Text.UTF8Encoding]::new($false))
+    }
+    Add-Check "$b : lanceur" ((Test-Path $launcher) -or $WhatIfPreference) $launcher
+
     # Identite git locale au jumeau si aucune n'est configuree (pour commiter sans question).
     # Adresse noreply du compte GitHub proprietaire du repo (fvegiard-lena, id 197432373).
     if ($inPlace -and $PSCmdlet.ShouldProcess($dir, 'git config user.name / user.email (seulement si absents)')) {
@@ -253,7 +322,14 @@ $failedRequired = @($script:checks | Where-Object { -not $_.OK -and $_.Required 
 $rate = if ($total) { [math]::Round(100.0 * $okCount / $total, 1) } else { 0 }
 Write-Host ("Taux de succes : {0}/{1} ({2} %)" -f $okCount, $total, $rate)
 foreach ($t in $twins) {
-    Write-Host ("Jumeau {0} : {1}  ->  cd `"{1}`" ; claude" -f $t.Branch, $t.Dir)
+    $c = Get-Compte $t.Branch
+    $l = Join-Path $Root ("lena-" + ($t.Branch -replace '[^A-Za-z0-9._-]', '-') + '.cmd')
+    Write-Host ("Jumeau {0} : {1}" -f $t.Branch, $t.Dir)
+    if ($SharedLogin) {
+        Write-Host ("   lancer : {0}   (compte Claude deja connecte sur ce PC)" -f $l)
+    } else {
+        Write-Host ("   lancer : {0}   compte {1}, config %USERPROFILE%\.claude-{2} - 1re fois : /login" -f $l, $c.Compte, $c.Cle)
+    }
 }
 if ($failedRequired) {
     Write-Host "$failedRequired verification(s) obligatoire(s) en echec : voir ci-dessus."
