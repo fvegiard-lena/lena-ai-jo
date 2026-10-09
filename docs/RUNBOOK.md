@@ -176,15 +176,15 @@ Un jumeau = un deuxième checkout du repo, sur sa propre branche, à côté de `
 | `Estimateur-2` | `%USERPROFILE%\dev\lena-Estimateur-2` | Estimateur 2 | `lena.ai.dr.routeur@gmail.com` (pour le moment) |
 | `estimateur-junior` | `%USERPROFILE%\dev\lena-estimateur-junior` | Les autres estimateurs | [À CONFIRMER — Francis] |
 
-Chaque jumeau est piloté par son propre compte Claude : sur le PC de ce jumeau, `claude` est connecté avec ce compte, et Desktop Commander Remote y est appairé avec le même compte (RUNBOOK §3). Un compte ne voit que les appareils qu'il a appairés.
+Un compte Claude (et un appairage Desktop Commander) vaut pour une session Windows / un PC, pas pour un dossier : sur le PC de Jo, les trois jumeaux roulent sous le compte de Jo. Pour qu'un jumeau roule sous son propre compte (ex. estimateur 2) : l'installer sur son PC ou sa session Windows avec `-Branch Estimateur-2`, y connecter `claude` avec ce compte et y appairer Desktop Commander (§3). Un compte ne voit que les appareils qu'il a appairés.
 
 **Installer ou mettre à jour (PC de Jo, ou le PC d'un autre estimateur) :**
 ```powershell
 pwsh -File "$env:USERPROFILE\dev\lena-ai-jo\scripts\install-twin.ps1"
 ```
-Sur un PC qui n'a pas encore le repo : `git clone https://github.com/fvegiard-lena/lena-ai-jo.git "$env:USERPROFILE\dev\lena-ai-jo"` d'abord, puis la même commande. Une seule branche (ex. le PC de l'estimateur 2) : `-Branch Estimateur-2`. Sans les tests : `-SkipTests`. Pour voir sans rien faire : `-WhatIf`.
+Sur un PC qui n'a pas encore le repo : `git clone https://github.com/fvegiard-lena/lena-ai-jo.git "$env:USERPROFILE\dev\lena-ai-jo"` d'abord, puis la même commande. Une seule branche (ex. le PC de l'estimateur 2) : `-Branch Estimateur-2` ; plusieurs : `-Branch francis-dev,Estimateur-2`. Sans les tests : `-SkipTests`. Sans installer d'outil : `-NoInstall`. Pour voir sans rien faire (rien n'est écrit, pas même la config git) : `-WhatIf`.
 
-Le script : vérifie `git`, `mise`, `uv`, `node`, `claude` (installe `uv` via mise s'il manque) ; clone ou met à jour (`git pull --ff-only`, jamais de reset) chaque jumeau ; écrit `CLAUDE.local.md` (ignoré par git) qui importe `docs\LENA.md` pour que Claude Code lancé dans ce dossier **soit** Léna ; `uv sync --locked` et les mêmes tests que la CI ; finit par un taux de succès (checks OK / total). Code de sortie 1 si une vérification obligatoire échoue.
+Le script : vérifie `git`, `mise`, `uv`, `node`, `claude` et installe ce qui manque (`winget` pour git et mise, `mise use -g` pour uv et node, installateur officiel `claude.ai/install.ps1` pour Claude Code ; un outil installé pendant le script peut demander de rouvrir le terminal et relancer) ; clone ou met à jour chaque jumeau (`git pull --ff-only`, jamais de reset ; un jumeau laissé sur une autre branche est seulement « fetché », pas basculé ; un jumeau dont `origin` n'est pas le bon repo est signalé, pas tiré) ; écrit `CLAUDE.local.md` (ignoré par git, jamais réécrit s'il existe déjà) qui importe `docs\LENA.md` pour que Claude Code lancé dans ce dossier **soit** Léna ; pose l'identité git du jumeau (`Léna (<branche>)`, adresse noreply du compte GitHub `fvegiard-lena`) seulement si aucune n'est configurée (un estimateur qui veut ses commits à son nom fait `git config --global user.name "…"` et `user.email "…"` avant) ; `uv sync --locked` et les mêmes tests que la CI ; finit par un taux de succès (checks OK / total). Code de sortie 1 si une vérification obligatoire échoue.
 
 **S'en servir :** `cd "$env:USERPROFILE\dev\lena-estimateur-junior"` puis `claude`. Les règles (LENA.md) et les skills (`.claude\skills`) sont prises dans ce dossier.
 

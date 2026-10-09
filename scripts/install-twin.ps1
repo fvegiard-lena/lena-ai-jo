@@ -1,26 +1,34 @@
-#Requires -Version 7
+#Requires -Version 7.2
 # Installe (ou met a jour) un jumeau de Lena sur ce PC : un checkout du repo par branche,
 # a cote de lena-ai-jo, avec les outils et les dependances verifies.
 #   francis-dev        -> %USERPROFILE%\dev\lena-francis-dev        (Francis)
 #   Estimateur-2       -> %USERPROFILE%\dev\lena-Estimateur-2       (estimateur 2 : compte lena.ai.dr.routeur@gmail.com pour le moment)
 #   estimateur-junior  -> %USERPROFILE%\dev\lena-estimateur-junior  (les autres estimateurs)
-# Chaque jumeau recoit un CLAUDE.local.md (ignore par git) qui importe docs\LENA.md :
-# Claude Code lance dans ce dossier suit les regles de Lena et trouve les skills (.claude\skills).
+# Chaque jumeau recoit un CLAUDE.local.md (ignore par git, jamais reecrit s'il existe) qui importe
+# docs\LENA.md : Claude Code lance dans ce dossier suit les regles de Lena et trouve les skills.
 # Usage : pwsh -File scripts\install-twin.ps1 [-Branch francis-dev,Estimateur-2,estimateur-junior]
-#                                             [-Root "$env:USERPROFILE\dev"] [-SkipTests] [-WhatIf]
+#                                             [-Root "$env:USERPROFILE\dev"] [-SkipTests] [-NoInstall] [-WhatIf]
 # Pas besoin d'admin. Idempotent : relancer met a jour (git pull --ff-only), ne refait pas le clone.
+# Outil manquant -> installe (winget / mise / installateur Claude Code), sauf avec -NoInstall.
 # Ne touche jamais au checkout principal (lena-ai-jo) ni aux taches planifiees.
+# -WhatIf : montre tout, n'ecrit rien (ni clone, ni config git, ni fichier, ni installation).
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [string[]]$Branch = @('francis-dev', 'Estimateur-2', 'estimateur-junior'),
     [string]$Root = (Join-Path $env:USERPROFILE 'dev'),
     [string]$Remote = 'https://github.com/fvegiard-lena/lena-ai-jo.git',
-    [switch]$SkipTests
+    [switch]$SkipTests,
+    [switch]$NoInstall
 )
 
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 $env:GIT_TERMINAL_PROMPT = '0'
+
+# « pwsh -File ... -Branch a,b » passe la chaine « a,b » telle quelle : on la decoupe nous-memes.
+$Branch = @($Branch | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+# Chemin absolu : [IO.File] ne suit pas le dossier courant de PowerShell.
+$Root = [IO.Path]::GetFullPath($Root, $PWD.ProviderPath)
 
 $script:checks = [System.Collections.Generic.List[object]]::new()
 function Add-Check([string]$Name, [bool]$Ok, [string]$Detail = '', [bool]$Required = $true) {
@@ -30,6 +38,7 @@ function Add-Check([string]$Name, [bool]$Ok, [string]$Detail = '', [bool]$Requir
 }
 
 # Lance une commande native, capture la sortie, retourne $true si le code de sortie est 0.
+# Sous -WhatIf : rien n'est lance, l'etape est comptee OK.
 function Invoke-Native([string]$Name, [string]$Exe, [string[]]$Arguments, [string]$WorkDir = $null, [bool]$Required = $true) {
     if (-not $PSCmdlet.ShouldProcess(($(if ($WorkDir) { $WorkDir } else { $PWD })), "$Exe $($Arguments -join ' ')")) {
         Add-Check $Name $true 'WhatIf' $Required
@@ -52,6 +61,11 @@ function Invoke-Native([string]$Name, [string]$Exe, [string[]]$Arguments, [strin
     return ($code -eq 0)
 }
 
+function Get-GitHead([string]$Dir) {
+    Push-Location $Dir
+    try { return (git rev-parse --abbrev-ref HEAD 2>$null | Out-String).Trim() } finally { Pop-Location }
+}
+
 # --- 1. Outils ----------------------------------------------------------------
 Write-Host "`n== Outils =="
 function Test-Tool([string]$Name, [bool]$Required, [string]$Hint) {
@@ -60,18 +74,65 @@ function Test-Tool([string]$Name, [bool]$Required, [string]$Hint) {
     return [bool]$cmd
 }
 
-$hasGit  = Test-Tool 'git'  $true  'installer Git for Windows (winget install Git.Git)'
-$hasMise = Test-Tool 'mise' $false 'winget install jdx.mise (voir RUNBOOK section 5)'
-$hasUv   = Test-Tool 'uv'   $false 'mise use -g uv@latest'
-if (-not $hasUv -and $hasMise) {
-    # Regle Lena : lib / outil manquant -> on l'installe, on ne demande pas.
-    if (Invoke-Native 'mise use -g uv@latest' 'mise' @('use', '-g', 'uv@latest') -Required $false) {
-        Invoke-Native 'mise reshim' 'mise' @('reshim') -Required $false | Out-Null
-        $hasUv = Test-Tool 'uv' $false 'mise use -g uv@latest a echoue'
+# Un outil installe pendant ce script n'est pas encore sur le PATH du process : on le recharge
+# (Machine + User + shims mise), puis on reteste.
+function Update-Path {
+    if (-not $IsWindows) { return }
+    $parts = @(
+        [Environment]::GetEnvironmentVariable('Path', 'Machine'),
+        [Environment]::GetEnvironmentVariable('Path', 'User'),
+        (Join-Path $env:LOCALAPPDATA 'mise\shims'),
+        (Join-Path $env:LOCALAPPDATA 'Programs\Git\cmd'),
+        (Join-Path $env:ProgramFiles 'Git\cmd'),
+        (Join-Path $env:USERPROFILE '.local\bin')
+    ) | Where-Object { $_ }
+    $env:Path = ($parts -join ';')
+}
+
+# Regle Lena : outil manquant -> on l'installe, on ne demande pas (sauf -NoInstall).
+$install = (-not $NoInstall) -and $IsWindows
+$hasWinget = [bool](Get-Command winget -CommandType Application -ErrorAction SilentlyContinue)
+
+$hasGit = Test-Tool 'git' $true 'winget install --id Git.Git -e'
+if (-not $hasGit -and $install -and $hasWinget) {
+    if (Invoke-Native 'winget install Git.Git' 'winget' @('install', '--id', 'Git.Git', '-e', '--silent', '--accept-package-agreements', '--accept-source-agreements') -Required $false) {
+        Update-Path; $hasGit = Test-Tool 'git' $true 'installe mais introuvable : rouvrir un terminal et relancer'
     }
 }
-$null = Test-Tool 'node'   $false 'mise use -g node@lts'
-$null = Test-Tool 'claude' $false 'installateur natif Claude Code (https://code.claude.com/docs/en/setup)'
+$hasMise = Test-Tool 'mise' $false 'winget install --id jdx.mise -e (RUNBOOK section 5)'
+if (-not $hasMise -and $install -and $hasWinget) {
+    if (Invoke-Native 'winget install jdx.mise' 'winget' @('install', '--id', 'jdx.mise', '-e', '--silent', '--accept-package-agreements', '--accept-source-agreements') -Required $false) {
+        Update-Path; $hasMise = Test-Tool 'mise' $false 'installe mais introuvable : rouvrir un terminal et relancer'
+    }
+}
+$hasUv = Test-Tool 'uv' $false 'mise use -g uv@latest'
+if (-not $hasUv -and $install -and $hasMise) {
+    if (Invoke-Native 'mise use -g uv@latest' 'mise' @('use', '-g', 'uv@latest') -Required $false) {
+        Invoke-Native 'mise reshim' 'mise' @('reshim') -Required $false | Out-Null
+        Update-Path; $hasUv = Test-Tool 'uv' $false 'mise use -g uv@latest a echoue'
+    }
+}
+$hasNode = Test-Tool 'node' $false 'mise use -g node@lts'
+if (-not $hasNode -and $install -and $hasMise) {
+    if (Invoke-Native 'mise use -g node@lts' 'mise' @('use', '-g', 'node@lts') -Required $false) {
+        Invoke-Native 'mise reshim' 'mise' @('reshim') -Required $false | Out-Null
+        Update-Path; $hasNode = Test-Tool 'node' $false 'mise use -g node@lts a echoue'
+    }
+}
+$hasClaude = Test-Tool 'claude' $false 'installateur natif : irm https://claude.ai/install.ps1 | iex'
+if (-not $hasClaude -and $install) {
+    # Installateur officiel Claude Code (Windows) : https://code.claude.com/docs/en/setup
+    if ($PSCmdlet.ShouldProcess('claude.ai/install.ps1', 'installer Claude Code')) {
+        try {
+            Invoke-Expression (Invoke-RestMethod 'https://claude.ai/install.ps1') | Out-Null
+            Update-Path; $hasClaude = Test-Tool 'claude' $false 'installe mais introuvable : rouvrir un terminal et relancer'
+        } catch {
+            Add-Check 'installer Claude Code' $false "$_" $false
+        }
+    } else {
+        Add-Check 'installer Claude Code' $true 'WhatIf' $false
+    }
+}
 if (-not $hasGit) {
     Write-Host "`ngit est obligatoire : rien d'autre ne peut etre fait."
     exit 1
@@ -85,17 +146,31 @@ $twins = @()
 foreach ($b in $Branch) {
     Write-Host "`n== Jumeau $b =="
     $dir = Join-Path $Root ("lena-" + ($b -replace '[^A-Za-z0-9._-]', '-'))
-    $twins += [pscustomobject]@{ Branch = $b; Dir = $dir }
+    $gitDir = Join-Path $dir '.git'
 
-    if (Test-Path (Join-Path $dir '.git')) {
-        # Deja clone : mise a jour en avance rapide seulement (jamais de reset, jamais de perte de travail local)
+    if (Test-Path $gitDir) {
+        # Deja clone. Le remote doit etre le bon : sinon on ne tire rien de la.
+        Push-Location $dir
+        try { $url = (git remote get-url origin 2>$null | Out-String).Trim() } finally { Pop-Location }
+        $sameRemote = (($url -replace '\.git$', '').TrimEnd('/')) -ieq (($Remote -replace '\.git$', '').TrimEnd('/'))
+        Add-Check "$b : remote origin" $sameRemote ($(if ($sameRemote) { $url } else { "origin = '$url' (attendu : $Remote) - corriger : git -C `"$dir`" remote set-url origin $Remote" }))
+        if (-not $sameRemote) { continue }
+
+        # Mise a jour en avance rapide seulement : jamais de reset, jamais de perte de travail local.
+        # Jumeau parque sur une autre branche (travail en cours) : on fetch, on ne bascule pas.
+        $head = Get-GitHead $dir
+        $parked = ($head -ne $b)
         $ok = Invoke-Native "$b : git fetch" 'git' @('fetch', '--quiet', 'origin', $b) $dir
-        if ($ok) { $ok = Invoke-Native "$b : git checkout $b" 'git' @('checkout', '--quiet', $b) $dir }
-        if ($ok) { $ok = Invoke-Native "$b : git pull --ff-only" 'git' @('pull', '--quiet', '--ff-only', 'origin', $b) $dir }
+        if ($ok -and -not $parked) {
+            $ok = Invoke-Native "$b : git pull --ff-only" 'git' @('pull', '--quiet', '--ff-only', 'origin', $b) $dir
+        } elseif ($ok) {
+            Add-Check "$b : branche courante" $false "HEAD = '$head' (travail en cours) : fetch seulement, pas de checkout. Pour revenir : git -C `"$dir`" checkout $b" $false
+        }
     } elseif (Test-Path $dir) {
         Add-Check "$b : dossier $dir" $false 'existe mais n''est pas un depot git - le deplacer ou le supprimer, puis relancer'
         continue
     } else {
+        $parked = $false
         $cloneArgs = @('clone', '--quiet', '--branch', $b)
         if (Test-Path (Join-Path $mainRepo '.git')) {
             # Reutilise les objets du checkout principal pour le clone, puis s'en detache (jumeau autonome)
@@ -105,39 +180,45 @@ foreach ($b in $Branch) {
         $ok = Invoke-Native "$b : git clone" 'git' $cloneArgs
     }
     if (-not $ok) { continue }
+    $twins += [pscustomobject]@{ Branch = $b; Dir = $dir }
 
-    # Branche effectivement en place ? (pas de clone en -WhatIf : on saute)
-    $inPlace = Test-Path (Join-Path $dir '.git')
-    if ($inPlace) {
-        Push-Location $dir
-        try { $head = (git rev-parse --abbrev-ref HEAD 2>$null | Out-String).Trim() } finally { Pop-Location }
+    # Sous -WhatIf, un clone n'a pas eu lieu : les etapes qui lisent le depot sont sautees.
+    $inPlace = Test-Path $gitDir
+    if ($inPlace -and -not $WhatIfPreference -and -not $parked) {
+        $head = Get-GitHead $dir
         Add-Check "$b : branche courante" ($head -eq $b) ($(if ($head -eq $b) { "$head @ $dir" } else { "HEAD = '$head' (attendu : $b)" }))
     }
 
     # CLAUDE.local.md : Claude Code lit ce fichier a la racine du projet (ignore par git) et
     # importe docs\LENA.md. Les skills de .claude\skills sont decouvertes toutes seules.
+    # Fichier present = reglages perso de la personne : on n'y touche pas.
     $local = Join-Path $dir 'CLAUDE.local.md'
-    $content = @(
-        '# Lena - jumeau sur la branche ' + $b
-        ''
-        'Tu es Lena. Tes regles completes, a appliquer telles quelles :'
-        ''
-        '@docs/LENA.md'
-        ''
-        'Branche de travail de ce checkout : `' + $b + '`. Jamais de push direct sur `main` : PR vers `main`.'
-        ''
-    ) -join "`n"
-    if ($PSCmdlet.ShouldProcess($local, 'ecrire CLAUDE.local.md')) {
-        [IO.File]::WriteAllText($local, $content, [Text.UTF8Encoding]::new($false))
+    if (Test-Path $local) {
+        Add-Check "$b : CLAUDE.local.md" $true "$local (existant, conserve)"
+    } else {
+        $content = @(
+            '# Lena - jumeau sur la branche ' + $b
+            ''
+            'Tu es Lena. Tes regles completes, a appliquer telles quelles :'
+            ''
+            '@docs/LENA.md'
+            ''
+            'Branche de travail de ce checkout : `' + $b + '`. Jamais de push direct sur `main` : PR vers `main`.'
+            ''
+        ) -join "`n"
+        if ($PSCmdlet.ShouldProcess($local, 'ecrire CLAUDE.local.md')) {
+            [IO.File]::WriteAllText($local, $content, [Text.UTF8Encoding]::new($false))
+        }
+        Add-Check "$b : CLAUDE.local.md" ((Test-Path $local) -or $WhatIfPreference) $local
     }
-    Add-Check "$b : CLAUDE.local.md" ((Test-Path $local) -or $WhatIfPreference) $local
 
-    # Identite git locale au jumeau si aucune n'est configuree (pour commiter sans question)
-    if ($inPlace) {
+    # Identite git locale au jumeau si aucune n'est configuree (pour commiter sans question).
+    # Adresse noreply du compte GitHub proprietaire du repo (fvegiard-lena, id 197432373).
+    if ($inPlace -and $PSCmdlet.ShouldProcess($dir, 'git config user.name / user.email (seulement si absents)')) {
         Push-Location $dir
         try {
             if (-not (git config user.name))  { git config user.name "L$([char]0xE9)na ($b)" }
-            if (-not (git config user.email)) { git config user.email 'lena@users.noreply.github.com' }
+            if (-not (git config user.email)) { git config user.email '197432373+fvegiard-lena@users.noreply.github.com' }
         } finally { Pop-Location }
     }
 
