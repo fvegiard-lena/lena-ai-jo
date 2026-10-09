@@ -10,7 +10,8 @@ il affiche des extraits, il ne rédige pas la réponse).
 Commandes : depuis la racine du checkout (le dossier de travail de Claude Code), en PowerShell ou Git Bash.
 Si le dossier de travail n'est pas cette racine (ex. commande lancée par Desktop Commander), s'y placer d'abord :
 PowerShell `Set-Location "$env:USERPROFILE\dev\lena-ai-jo"` (chez Jo ; dans un jumeau : son dossier `lena-<branche>`),
-Git Bash `cd ~/dev/lena-ai-jo`. Une erreur « Project directory 'code-rag' does not exist » veut dire que ce pas manque.
+Git Bash `cd ~/dev/lena-ai-jo` (jumeau : `cd ~/dev/lena-<branche>`, ou son dossier sous `-Root`). L'erreur
+`error: Project directory `code-rag` does not exist` veut dire que ce pas manque.
 
 ## Étapes
 
