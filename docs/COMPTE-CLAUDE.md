@@ -55,9 +55,12 @@ forfait a des crédits, sinon Opus 5.5).
 
 ## 5. Claude Code sur le PC
 
-Lanceur du jumeau (`<Root>\lena-<branche>.cmd`, RUNBOOK §11) → première fois : `/login` avec le compte de la
-table §1. Le dossier de config du compte reçoit `config\claude\settings.json` du repo ; les plugins et le HUD
-se font ensuite dans ce dossier (RUNBOOK §5).
+Lanceur du jumeau (`<Root>\lena-<branche>.cmd`, RUNBOOK §11), ouvert depuis un terminal Windows normal (jamais
+depuis une session Claude Desktop/Code : le lanceur refuse) → première fois : `/login` avec le compte de la
+table §1, dans un navigateur dont la fenêtre privée est connectée à ce compte. Dans un jumeau : jamais `/logout`
+ni `/chrome`. Le dossier de config du compte reçoit `config\claude\settings.json` du repo (plus
+`DISABLE_AUTOUPDATER=1` : le binaire `claude` est partagé) ; les plugins et le HUD se font ensuite dans ce
+dossier (RUNBOOK §5).
 
 ## 6. État au 2026-10-09
 

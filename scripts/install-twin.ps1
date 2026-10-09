@@ -12,6 +12,10 @@
 # compte principal du PC) ; le lanceur <Root>\lena-<branche>.cmd pose CLAUDE_CONFIG_DIR, va dans le
 # jumeau et lance claude. Premiere fois : /login avec le compte du jumeau. -SharedLogin : pas de
 # dossier separe, le jumeau roule sous le compte deja connecte sur ce PC (ancien comportement).
+# Le lanceur refuse de partir depuis un terminal ouvert dans Claude Desktop / Claude Code (l'identite du
+# compte principal y est dans l'environnement et serait semee dans le jumeau), coupe l'auto-mise-a-jour
+# (binaire claude partage par tous les comptes) et les jetons API de l'environnement. Un dossier de config
+# jamais connecte qui porte l'identite d'un autre compte est nettoye (.claude.json retire).
 # Usage : pwsh -File scripts\install-twin.ps1 [-Branch francis-dev,Estimateur-2,estimateur-junior]
 #         [-Root "$env:USERPROFILE\dev"] [-SkipTests] [-NoInstall] [-SharedLogin] [-WhatIf]
 # Pas besoin d'admin. Idempotent : relancer met a jour (git pull --ff-only), ne refait pas le clone,
@@ -237,7 +241,11 @@ foreach ($b in $Branch) {
     $compte = Get-Compte $b
     $safe = ($b -replace '[^A-Za-z0-9._-]', '-')
     $launcher = Join-Path $Root ("lena-" + $safe + '.cmd')
-    $lines = @('@echo off', ('rem Jumeau Lena ' + $b + ' - compte Claude : ' + $compte.Compte + ' (genere par install-twin.ps1, regenere a chaque passage)'))
+    $lines = @(
+        '@echo off',
+        ('rem Jumeau Lena ' + $b + ' - compte Claude : ' + $compte.Compte + ' (genere par install-twin.ps1, regenere a chaque passage)'),
+        'set "DISABLE_AUTOUPDATER=1"'
+    )
     if (-not $SharedLogin) {
         $cfgName = '.claude-' + $compte.Cle
         $cfg = Join-Path $env:USERPROFILE $cfgName
@@ -247,8 +255,22 @@ foreach ($b in $Branch) {
             }
         }
         Add-Check "$b : dossier de config" ((Test-Path $cfg) -or $WhatIfPreference) "$cfg (compte $($compte.Compte))"
+        # Dossier jamais connecte (pas de .credentials.json) dont .claude.json porte l'identite d'un AUTRE compte :
+        # semee par un claude lance depuis une session Claude hebergee (Desktop/Code). On le retire, sinon le
+        # jumeau resterait etiquete avec le mauvais compte apres /login.
+        $cj = Join-Path $cfg '.claude.json'
+        if ((Test-Path $cj) -and -not (Test-Path (Join-Path $cfg '.credentials.json'))) {
+            try { $mail = (Get-Content -Raw -Path $cj | ConvertFrom-Json).oauthAccount.emailAddress } catch { $mail = $null }
+            if ($mail -and ($mail -ne $compte.Compte)) {
+                if ($PSCmdlet.ShouldProcess($cj, "retirer l'identite parasite $mail (dossier jamais connecte)")) {
+                    Remove-Item -Force -Path $cj
+                }
+                Add-Check "$b : identite parasite retiree" $true "$cj portait $mail (dossier jamais connecte)" $false
+            }
+        }
         # settings.json : meme source pour tous les jumeaux (config\claude\settings.json du repo), sans ce qui
-        # est propre a un PC (statusLine, enabledPlugins). Jamais reecrit s'il existe : reglages de la personne.
+        # est propre a un PC (statusLine, enabledPlugins), plus DISABLE_AUTOUPDATER (binaire claude partage).
+        # Jamais reecrit s'il existe : reglages de la personne.
         $seed = Join-Path $dir 'config' 'claude' 'settings.json'
         $dst = Join-Path $cfg 'settings.json'
         if (Test-Path $dst) {
@@ -259,6 +281,8 @@ foreach ($b in $Branch) {
                 foreach ($k in @('statusLine', 'enabledPlugins')) {
                     if ($obj.PSObject.Properties[$k]) { $obj.PSObject.Properties.Remove($k) }
                 }
+                if (-not $obj.PSObject.Properties['env']) { $obj | Add-Member -NotePropertyName 'env' -NotePropertyValue ([pscustomobject]@{}) }
+                if (-not $obj.env.PSObject.Properties['DISABLE_AUTOUPDATER']) { $obj.env | Add-Member -NotePropertyName 'DISABLE_AUTOUPDATER' -NotePropertyValue '1' }
                 if ($PSCmdlet.ShouldProcess($dst, 'ecrire settings.json (depuis config\claude\settings.json du repo)')) {
                     [IO.File]::WriteAllText($dst, ($obj | ConvertTo-Json -Depth 20), [Text.UTF8Encoding]::new($false))
                 }
@@ -271,11 +295,27 @@ foreach ($b in $Branch) {
         } else {
             Add-Check "$b : settings.json" $false 'pas de config\claude\settings.json dans le jumeau' $false
         }
-        $lines += ('set "CLAUDE_CONFIG_DIR=%USERPROFILE%\' + $cfgName + '"')
+        $lines += @(
+            'rem Jamais depuis un terminal ouvert dans Claude Desktop / Claude Code : l''identite du compte principal',
+            'rem (CLAUDE_CODE_ACCOUNT_UUID, CLAUDE_CODE_USER_EMAIL...) y est dans l''environnement et serait semee ici.',
+            'if defined CLAUDE_CODE_ACCOUNT_UUID goto :heberge',
+            'if defined CLAUDECODE goto :heberge',
+            'set "CLAUDE_CODE_OAUTH_TOKEN="',
+            'set "ANTHROPIC_API_KEY="',
+            'set "ANTHROPIC_AUTH_TOKEN="',
+            ('set "CLAUDE_CONFIG_DIR=%USERPROFILE%\' + $cfgName + '"')
+        )
     } else {
         $lines += 'rem -SharedLogin : compte Claude deja connecte sur ce PC (pas de CLAUDE_CONFIG_DIR)'
     }
-    $lines += @(('cd /d "' + $dir + '"'), 'claude %*')
+    $lines += @(('cd /d "' + $dir + '"'), 'claude %*', 'exit /b %ERRORLEVEL%')
+    if (-not $SharedLogin) {
+        $lines += @(
+            ':heberge',
+            'echo [jumeau] Ouvre ce lanceur depuis un terminal Windows normal (menu Demarrer, Windows Terminal), pas depuis une session Claude : le compte principal serait reutilise.',
+            'exit /b 1'
+        )
+    }
     if ($PSCmdlet.ShouldProcess($launcher, 'ecrire le lanceur')) {
         [IO.File]::WriteAllText($launcher, (($lines -join "`r`n") + "`r`n"), [Text.UTF8Encoding]::new($false))
     }
