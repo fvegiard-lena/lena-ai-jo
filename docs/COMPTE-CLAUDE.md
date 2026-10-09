@@ -20,6 +20,20 @@ Chaque compte a **son** profil Chrome (extension Claude installée et autorisée
 dossier de config Claude Code (`%USERPROFILE%\.claude-<clé>`, créé par `install-twin.ps1`). Claude Desktop
 ne tient qu'un compte à la fois.
 
+### Qui tourne où (décision de Francis, 2026-10-09)
+
+| PC | Compte principal (`%USERPROFILE%\.claude`, Claude Desktop) | Ce qui y tourne | Commande d'installation |
+|---|---|---|---|
+| **PC de Jo** (son Legion) — **le workspace** | Jo, `lena.ai.dr@gmail.com`, et personne d'autre | `lena-ai-jo` sur `main` (tâches planifiées, Qdrant, Ollama, OneDrive `Mes projets`) **et les estimateurs** : jumeaux `Estimateur-2`, `estimateur-junior`, chacun sous son compte et son dossier de config, qui travaillent avec Jo | `pwsh -File "$env:USERPROFILE\dev\lena-ai-jo\scripts\install-twin.ps1" -Branch Estimateur-2,estimateur-junior` |
+| **PC de Francis** (son Legion) — **dev** | Francis, `fvegiard@gmail.com` | jumeau `francis-dev` : améliorations, corrections, pousser Léna plus loin ; `D:\github\lena-ai-jo` en miroir lecture seule pour l'installateur ; les jumeaux estimateurs seulement le temps d'un test | `pwsh -File "D:\github\lena-ai-jo\scripts\install-twin.ps1" -Root D:\github -Branch francis-dev` |
+| PC d'un autre estimateur | le compte de cet estimateur | son jumeau | `-Branch <sa branche>` |
+
+Règles :
+- Le profil de Jo (`%USERPROFILE%\.claude`, son compte claude.ai, Claude Desktop, Desktop Commander « Jo ») est à Jo seul : aucun autre PC ne se connecte avec son compte, aucun jumeau ne tourne avec `-SharedLogin` sur son PC, l'installateur n'y touche jamais.
+- Les estimateurs travaillent avec Jo dans le workspace de son PC, chacun par son lanceur et son compte (table §1). Ils n'ont pas accès au dossier de config de Jo, et Jo n'a pas besoin du leur.
+- Entre les PC, **un seul canal : git**. Un jumeau pousse sa branche et ouvre une PR vers `main` ; le PC de Jo répond par le workflow (CI GitHub sur la PR, CI de nuit `lena-nightly-ci`, `@claude` dans la PR au besoin). Rien d'autre n'est partagé : ni dossier de config, ni appairage Desktop Commander, ni données locales, ni session.
+- Le poste dev se connecte à Léna seulement pour améliorer, corriger ou aller plus loin ; les tests d'estimation se font dans un jumeau estimateur, et leur résultat revient au PC de Jo par la PR.
+
 ## 2. Paramètres claude.ai (claude.ai → Paramètres)
 
 | Section | Réglage | Valeur |
@@ -68,4 +82,4 @@ dossier (RUNBOOK §5).
 |---|---|---|---|---|
 | `lena.ai.dr@gmail.com` (Jo) | référence | référence | oui | checkout principal |
 | `lena.ai.dr.routeur@gmail.com` | alignés sur Jo | Gmail, Calendar, Drive, Mermaid, Normes faits ; Desktop Commander, GitHub, Slack, Cloudflare, Hugging Face : à connecter (login de la personne) | oui (profil « Lena-ai Dr-Routeur ») | jumeaux installés sur le PC de Francis, `/login` à faire |
-| `fvegiard@gmail.com` (Francis) | à faire | à faire | extension installée dans le profil « Francis V » | jumeau `francis-dev` installé sur le PC de Francis, `/login` à faire |
+| `fvegiard@gmail.com` (Francis) | à faire | à faire | extension installée dans le profil « Francis V » | jumeau `francis-dev` installé sur le PC de Francis, `/login` à faire ; le login principal de ce PC (`%USERPROFILE%\.claude`, Claude Desktop) est encore celui de Jo et doit passer à Francis (décision du 2026-10-09, à faire par Francis) |

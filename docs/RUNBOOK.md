@@ -168,7 +168,7 @@ Les PDF des normes restent **locaux** (droits d'auteur) : `code-rag/data/` est i
 
 ## 11. Installer un jumeau de Léna (Francis dev, estimateur junior)
 
-Un jumeau = un deuxième checkout du repo, sur sa propre branche, à côté de `lena-ai-jo`. Même code, mêmes skills, mêmes règles ; chacun travaille sur sa branche et fait une PR vers `main`.
+Un jumeau = un deuxième checkout du repo, sur sa propre branche, à côté de `lena-ai-jo`. Même code, mêmes skills, mêmes règles ; chacun travaille sur sa branche et fait une PR vers `main`. Qui tourne où (le PC de Jo = le workspace de Jo et des estimateurs, chacun sous son compte ; le PC de Francis = dev ; entre les PC, git seulement) : `docs/COMPTE-CLAUDE.md`, section « Qui tourne où ».
 
 | Branche | Dossier (sous `<Root>`, `%USERPROFILE%\dev` par défaut) | Pour qui | Compte Claude (décision de Francis, 2026-10-09) | Dossier de config Claude Code |
 |---|---|---|---|---|
