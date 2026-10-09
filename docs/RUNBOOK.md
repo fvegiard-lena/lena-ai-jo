@@ -170,20 +170,25 @@ Les PDF des normes restent **locaux** (droits d'auteur) : `code-rag/data/` est i
 
 Un jumeau = un deuxième checkout du repo, sur sa propre branche, à côté de `lena-ai-jo`. Même code, mêmes skills, mêmes règles ; chacun travaille sur sa branche et fait une PR vers `main`.
 
-| Branche | Dossier | Pour qui |
-|---|---|---|
-| `francis-dev` | `%USERPROFILE%\dev\lena-francis-dev` | Francis (développement) |
-| `estimateur-junior` | `%USERPROFILE%\dev\lena-estimateur-junior` | Les autres estimateurs |
+| Branche | Dossier | Pour qui | Compte Claude / Desktop Commander |
+|---|---|---|---|
+| `francis-dev` | `%USERPROFILE%\dev\lena-francis-dev` | Francis (développement) | [À CONFIRMER — Francis] |
+| `Estimateur-2` | `%USERPROFILE%\dev\lena-Estimateur-2` | Estimateur 2 | `lena.ai.dr.routeur@gmail.com` (pour le moment) |
+| `estimateur-junior` | `%USERPROFILE%\dev\lena-estimateur-junior` | Les autres estimateurs | [À CONFIRMER — Francis] |
+
+Chaque jumeau est piloté par son propre compte Claude : sur le PC de ce jumeau, `claude` est connecté avec ce compte, et Desktop Commander Remote y est appairé avec le même compte (RUNBOOK §3). Un compte ne voit que les appareils qu'il a appairés.
 
 **Installer ou mettre à jour (PC de Jo, ou le PC d'un autre estimateur) :**
 ```powershell
 pwsh -File "$env:USERPROFILE\dev\lena-ai-jo\scripts\install-twin.ps1"
 ```
-Sur un PC qui n'a pas encore le repo : `git clone https://github.com/fvegiard-lena/lena-ai-jo.git "$env:USERPROFILE\dev\lena-ai-jo"` d'abord, puis la même commande. Une seule branche : `-Branch estimateur-junior`. Sans les tests : `-SkipTests`. Pour voir sans rien faire : `-WhatIf`.
+Sur un PC qui n'a pas encore le repo : `git clone https://github.com/fvegiard-lena/lena-ai-jo.git "$env:USERPROFILE\dev\lena-ai-jo"` d'abord, puis la même commande. Une seule branche (ex. le PC de l'estimateur 2) : `-Branch Estimateur-2`. Sans les tests : `-SkipTests`. Pour voir sans rien faire : `-WhatIf`.
 
 Le script : vérifie `git`, `mise`, `uv`, `node`, `claude` (installe `uv` via mise s'il manque) ; clone ou met à jour (`git pull --ff-only`, jamais de reset) chaque jumeau ; écrit `CLAUDE.local.md` (ignoré par git) qui importe `docs\LENA.md` pour que Claude Code lancé dans ce dossier **soit** Léna ; `uv sync --locked` et les mêmes tests que la CI ; finit par un taux de succès (checks OK / total). Code de sortie 1 si une vérification obligatoire échoue.
 
 **S'en servir :** `cd "$env:USERPROFILE\dev\lena-estimateur-junior"` puis `claude`. Les règles (LENA.md) et les skills (`.claude\skills`) sont prises dans ce dossier.
+
+**Copie conforme :** le jumeau est une copie exacte de ce que le repo contient (code, outils `plan-tools` / `code-rag`, skills, règles LENA.md, scripts). Ce qui vit dans le **compte claude.ai** ne se copie pas par le repo et se règle une fois par compte, dans claude.ai → Connecteurs : Gmail, Google Drive, Google Calendar, GitHub (repo `lena-ai-jo`), Desktop Commander (appareil appairé, §3), Normes DR Électrique, Slack, Cloudflare. Les données locales (Qdrant, Ollama, OneDrive `Mes projets`, PDF des codes) restent sur le PC de Jo : un jumeau sur un autre PC les refait pour lui (§1, §10).
 
 **Ça ne clone pas :** le dossier existe mais n'est pas un dépôt git (le déplacer), ou pas d'accès réseau à GitHub. Les tâches planifiées (`install-tasks.ps1`) restent liées au checkout principal : ne pas les relancer depuis un jumeau.
 

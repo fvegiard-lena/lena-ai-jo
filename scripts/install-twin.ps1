@@ -1,17 +1,18 @@
 #Requires -Version 7
 # Installe (ou met a jour) un jumeau de Lena sur ce PC : un checkout du repo par branche,
 # a cote de lena-ai-jo, avec les outils et les dependances verifies.
-#   francis-dev        -> %USERPROFILE%\dev\lena-francis-dev
-#   estimateur-junior  -> %USERPROFILE%\dev\lena-estimateur-junior
+#   francis-dev        -> %USERPROFILE%\dev\lena-francis-dev        (Francis)
+#   Estimateur-2       -> %USERPROFILE%\dev\lena-Estimateur-2       (estimateur 2 : compte lena.ai.dr.routeur@gmail.com pour le moment)
+#   estimateur-junior  -> %USERPROFILE%\dev\lena-estimateur-junior  (les autres estimateurs)
 # Chaque jumeau recoit un CLAUDE.local.md (ignore par git) qui importe docs\LENA.md :
 # Claude Code lance dans ce dossier suit les regles de Lena et trouve les skills (.claude\skills).
-# Usage : pwsh -File scripts\install-twin.ps1 [-Branch francis-dev,estimateur-junior]
+# Usage : pwsh -File scripts\install-twin.ps1 [-Branch francis-dev,Estimateur-2,estimateur-junior]
 #                                             [-Root "$env:USERPROFILE\dev"] [-SkipTests] [-WhatIf]
 # Pas besoin d'admin. Idempotent : relancer met a jour (git pull --ff-only), ne refait pas le clone.
 # Ne touche jamais au checkout principal (lena-ai-jo) ni aux taches planifiees.
 [CmdletBinding(SupportsShouldProcess)]
 param(
-    [string[]]$Branch = @('francis-dev', 'estimateur-junior'),
+    [string[]]$Branch = @('francis-dev', 'Estimateur-2', 'estimateur-junior'),
     [string]$Root = (Join-Path $env:USERPROFILE 'dev'),
     [string]$Remote = 'https://github.com/fvegiard-lena/lena-ai-jo.git',
     [switch]$SkipTests
