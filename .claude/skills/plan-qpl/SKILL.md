@@ -8,6 +8,9 @@ description: Inventaire, bordereau (BOM) et tracé IA des conduits d'un projet P
 Outil : `plan-tools` du checkout courant (`lena-ai-jo` ou un jumeau, RUNBOOK §11). Les `.qpl` d'origine ne sont jamais modifiés ;
 le tracé IA est écrit dans une copie `<nom> - IA.qpl`.
 Commandes : depuis la racine du checkout (le dossier de travail de Claude Code), en PowerShell ou Git Bash.
+Si le dossier de travail n'est pas cette racine (ex. commande lancée par Desktop Commander), s'y placer d'abord :
+PowerShell `Set-Location "$env:USERPROFILE\dev\lena-ai-jo"` (chez Jo ; dans un jumeau : son dossier `lena-<branche>`),
+Git Bash `cd ~/dev/lena-ai-jo`. Une erreur « Project directory 'plan-tools' does not exist » veut dire que ce pas manque.
 
 ## Étapes — inventaire / bordereau
 

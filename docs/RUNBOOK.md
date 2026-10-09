@@ -50,7 +50,7 @@ claude.ai ne rejoint plus le PC.
    Le navigateur s'ouvre : se connecter et **confirmer le code** affiché. Quand c'est « connecté », fermer la fenêtre et refaire l'étape 1.
 
 Desktop Commander 0.2.52 est géré par mise (voir §5). La tâche se relance toute seule chaque heure si elle est morte. Elle doit rester en RunLevel **Limited** (jamais « exécuter avec les privilèges les plus élevés »).
-Pour la recréer proprement : `pwsh -File scripts\install-tasks.ps1` (met à jour sur place, et relance le process s'il tournait hors de la tâche).
+Pour la recréer proprement : `pwsh -File "$env:USERPROFILE\dev\lena-ai-jo\scripts\install-tasks.ps1"` (met à jour sur place, et relance le process s'il tournait hors de la tâche). Toujours depuis le checkout principal : le script refuse de tourner depuis un jumeau (§11).
 
 ---
 
@@ -194,7 +194,23 @@ Le script : vérifie `git`, `mise`, `uv`, `node`, `claude` et installe ce qui ma
 
 **Copie conforme :** le jumeau est une copie exacte de ce que le repo contient (code, outils `plan-tools` / `code-rag`, skills, règles LENA.md, scripts, réglages Claude Code de `config\claude\settings.json`). Ce qui vit dans le **compte claude.ai** ne se copie pas par le repo et se règle une fois par compte, dans claude.ai, à la main : la liste exacte, identique pour tous les estimateurs (réglages, mémoire, langue, connecteurs Gmail / Google Drive / Google Calendar / GitHub `lena-ai-jo` / Desktop Commander (§3) / Normes DR Électrique / Slack / Cloudflare, extension Chrome), est dans `docs/COMPTE-CLAUDE.md`. Les données locales (Qdrant, Ollama, OneDrive `Mes projets`, PDF des codes) restent sur le PC de Jo : un jumeau sur un autre PC les refait pour lui (§1, §10).
 
-**Ça ne clone pas :** le dossier existe mais n'est pas un dépôt git (le déplacer), ou pas d'accès réseau à GitHub. Les tâches planifiées (`install-tasks.ps1`) restent liées au checkout principal : ne pas les relancer depuis un jumeau.
+**Ça ne clone pas :** le dossier existe mais n'est pas un dépôt git (le déplacer), ou pas d'accès réseau à GitHub. Les tâches planifiées (`install-tasks.ps1`) restent liées au checkout principal : le script refuse de tourner depuis un jumeau.
+
+**Après un merge dans `main` :** un jumeau ne reçoit que sa propre branche (`git pull --ff-only`). Pour lui ramener ce qui est entré dans `main` : dans le jumeau, `git fetch origin` puis `git merge origin/main` (ou l'inverse, PR du jumeau vers `main`, quand c'est lui qui a du neuf). Le checkout principal de Jo (`main`) n'a rien à faire : `lena-auto-commit` fait déjà `git pull --rebase` avant chaque push.
+
+---
+
+## 12. CI rouge sur `main` : « Parite Claude / ChatGPT »
+
+**Symptôme :** le job `ci` échoue à l'étape « Parite Claude / ChatGPT (AGENTS.md, skills) » après une modification de `docs/LENA.md` ou d'un `SKILL.md` sous `.claude/skills`.
+**Cause :** `AGENTS.md` (copie pour ChatGPT / Codex, entre `LENA:START` et `LENA:END`) et `.agents/skills` doivent rester identiques à `docs/LENA.md` et `.claude/skills`. On modifie toujours le côté Claude, puis on recopie.
+
+**Réparer (Git Bash, à la racine du checkout) :**
+```bash
+bash scripts/sync-agents.sh
+git add AGENTS.md .agents && git commit -m "sync: AGENTS.md and .agents/skills from Claude sources" && git push
+```
+Les tâches planifiées ne touchent jamais à ces fichiers : une CI rouge ici ne vient pas d'un snapshot.
 
 ---
 

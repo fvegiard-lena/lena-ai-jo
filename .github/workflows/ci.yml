@@ -29,8 +29,13 @@ jobs:
       # et .agents/skills (Codex) identique a .claude/skills (Claude).
       - name: Parite Claude / ChatGPT (AGENTS.md, skills)
         run: |
-          sed -n '/^<!-- LENA:START -->$/,/^<!-- LENA:END -->$/p' AGENTS.md | sed '1d;$d' | diff -u docs/LENA.md -
-          diff -ru .claude/skills .agents/skills
+          ok=0
+          sed -n '/^<!-- LENA:START -->$/,/^<!-- LENA:END -->$/p' AGENTS.md | sed '1d;$d' | diff -u docs/LENA.md - || ok=1
+          diff -ru .claude/skills .agents/skills || ok=1
+          if [ "$ok" != 0 ]; then
+            echo "::error::AGENTS.md / .agents/skills ne suivent plus docs/LENA.md / .claude/skills. Corriger : bash scripts/sync-agents.sh, puis commiter AGENTS.md et .agents (RUNBOOK section 12)."
+            exit 1
+          fi
 
       - name: JSON valides (config/)
         if: hashFiles('config/**/*.json') != ''
