@@ -37,5 +37,6 @@ Appelle **Francis**. Il a le [RUNBOOK](docs/RUNBOOK.md) (quoi faire quand quelqu
 - [Inventaire](docs/INVENTAIRE.md) : l'état de la machine
 - [CI-CD](docs/CI-CD.md) : les vérifications automatiques (GitHub et la nuit sur ton PC)
 - [LENA.md](docs/LENA.md) : les règles de Léna
+- [SIMULATEUR](docs/SIMULATEUR.md) : prouver un changement sur un PC de Jo simulé avant de l'installer
 - [BOUCLE](docs/BOUCLE.md) : la boucle autonome (Léna travaille seule sur une liste de tâches)
 - [COMPTE-CLAUDE](docs/COMPTE-CLAUDE.md) : ce que le compte claude.ai de chaque estimateur doit avoir (jumeaux : RUNBOOK §11)

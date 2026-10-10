@@ -1,0 +1,62 @@
+name: Simulateur PC de Jo
+
+# Recree le PC de Jo sur un runner Windows jetable et y lance les vrais scripts du repo
+# (scripts/sim/Test-JoPc.ps1). Rien ne sort du runner : "origin" y est un depot nu local.
+on:
+  push:
+    branches: [francis-dev, Estimateur-2, estimateur-junior]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  jo-pc:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      SIM_OUT: ${{ runner.temp }}\sim-out
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: mise (comme sur le PC de Jo)
+        shell: pwsh
+        run: |
+          winget --version 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            winget install --id jdx.mise -e --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
+          } else {
+            choco install mise -y --no-progress
+          }
+          $shims = Join-Path $env:LOCALAPPDATA 'mise\shims'
+          New-Item -ItemType Directory -Force -Path $shims | Out-Null
+          $shims | Add-Content $env:GITHUB_PATH
+          $miseExe = Get-Command mise -ErrorAction SilentlyContinue
+          if (-not $miseExe) {
+            $found = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages", "$env:ProgramData\chocolatey\bin" -Recurse -Filter mise.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+            Split-Path $found.FullName | Add-Content $env:GITHUB_PATH
+          }
+
+      - name: Claude Code (version de config/VERSIONS.md)
+        shell: pwsh
+        run: |
+          $v = (Select-String -Path config\VERSIONS.md -Pattern '^\| `claude --version` \| ([0-9.]+)').Matches[0].Groups[1].Value
+          & ([scriptblock]::Create((Invoke-RestMethod https://claude.ai/install.ps1))) $v
+          Join-Path $env:USERPROFILE '.local\bin' | Add-Content $env:GITHUB_PATH
+
+      - name: Simulateur
+        shell: pwsh
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.SIM_ANTHROPIC_API_KEY }}
+        run: pwsh -NoProfile -File scripts\sim\Test-JoPc.ps1
+
+      - name: Journaux
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jo-pc-sim-logs
+          path: ${{ runner.temp }}\sim-out
