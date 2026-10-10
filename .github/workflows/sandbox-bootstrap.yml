@@ -1,0 +1,45 @@
+name: Sandbox bootstrap (essai sur runner)
+
+# Lance scripts/sim/sandbox/Bootstrap.ps1 exactement comme JoPc.wsb le fait dans Windows Sandbox
+# (Windows PowerShell 5.1, dossier C:\sim\host), pour prouver le script avant de s'en servir.
+# Le runner n'a pas de session interactive : le resultat des taches planifiees y est note, pas exige.
+on:
+  workflow_dispatch:
+  push:
+    branches: [francis-dev]
+    paths: ['scripts/sim/**', '.github/workflows/sandbox-bootstrap.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preparer C:\sim\host comme Start-JoPcSandbox.ps1
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path C:\sim\host\out | Out-Null
+          Copy-Item scripts\sim\sandbox\Bootstrap.ps1, scripts\sim\sandbox\Start-RealLoop.ps1 C:\sim\host
+          Set-Content -Path C:\sim\host\branch.txt -Value '${{ github.ref_name }}' -NoNewline
+
+      - name: Bootstrap.ps1 (Windows PowerShell 5.1)
+        shell: cmd
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\sim\host\Bootstrap.ps1
+
+      - name: Verdict
+        shell: pwsh
+        run: |
+          Get-Content C:\sim\host\out\verdict.txt, C:\sim\host\out\taches-planifiees.txt -ErrorAction Continue
+          $v = Get-Content -Raw C:\sim\host\out\verdict.txt
+          if ($v -notmatch 'Simulateur : code 0') { throw "Le simulateur lance par Bootstrap.ps1 n'est pas vert : $v" }
+
+      - name: Journaux
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sandbox-bootstrap-logs
+          path: C:\sim\host\out
