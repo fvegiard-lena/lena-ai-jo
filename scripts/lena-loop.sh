@@ -117,6 +117,10 @@ for ((iter = 1; iter <= LENA_MAX_ITER; iter++)); do
         bash "$LENA_CHECK_CMD" "$base" "$task" > "$out.check.log" 2>&1 || { status=revert; note="check red"; }
     fi
 
+    if [[ "$status" == keep && "$mode" == task && -z "$(git status --porcelain)" ]]; then
+        status=revert; note="no change made"
+    fi
+
     if [[ "$status" == keep ]]; then
         [[ "$mode" == plan ]] || git mv -k "$task" "backlog/done/$id.md"
         git add -A

@@ -37,6 +37,7 @@ git config user.email "loop-test@example.invalid"
 printf '# ok\n\nMODE: ok\n' > backlog/todo/a-ok.md
 printf '# bad\n\nMODE: bad\n' > backlog/todo/b-bad.md
 printf '# protected\n\nMODE: protected\n' > backlog/todo/c-protected.md
+printf '# noop\n\nMODE: noop\n' > backlog/todo/d-noop.md
 git add -A
 git commit -q -m "fixture"
 program_before="$(git hash-object program.md)"
@@ -52,8 +53,9 @@ expect "ok task kept and moved to done" '[[ -f backlog/done/a-ok.md && -f plan-t
 expect "ok task committed" 'git log --format=%s | grep -qx "loop: a-ok"'
 expect "bad task reverted, then failed" '[[ ! -e BAD.txt && -f backlog/failed/b-bad.md ]]'
 expect "protected edit reverted, then failed" '[[ "$(git hash-object program.md)" == "$program_before" && -f backlog/failed/c-protected.md ]]'
+expect "no-change task never kept, then failed" '[[ -f backlog/failed/d-noop.md && ! -f backlog/done/d-noop.md ]]'
 expect "backlog empty" '[[ -z "$(find backlog/todo -name "*.md")" ]]'
-expect "5 passes logged" '[[ "$(tail -n +2 results.tsv | wc -l)" -eq 5 ]]'
+expect "7 passes logged" '[[ "$(tail -n +2 results.tsv | wc -l)" -eq 7 ]]'
 expect "1 keep logged" '[[ "$(awk -F"\t" "\$5 == \"keep\"" results.tsv | wc -l)" -eq 1 ]]'
 expect "tree clean" '[[ -z "$(git status --porcelain)" ]]'
 
