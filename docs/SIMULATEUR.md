@@ -50,6 +50,17 @@ Test avec le vrai Claude (optionnel, plafond 1 $) : dans la Sandbox, `claude` pu
 `pwsh -File C:\sim\host\Start-RealLoop.ps1` → une vraie tâche passe par la boucle ; verdict dans
 `out\real-loop-verdict.txt`. La Sandbox s'efface à la fermeture (login compris).
 
+## Risque trouvé par le simulateur : Desktop Commander et mise
+
+Sur une machine neuve, `mise install` **refuse** `npm:@wonderwhy-er/desktop-commander` (latest et 0.2.52) :
+sa dépendance `chromium-bidi@157.0.8090-0` n'a pas de preuve de provenance alors qu'une version plus ancienne
+en avait (politique de confiance de mise). Pire : tant qu'un outil de `config/mise/config.toml` manque, **chaque**
+appel d'un shim mise (`uv`, `node`…) retente l'installation et échoue. Chez Jo c'est dormant (Desktop Commander
+est déjà installé), mais une réinstallation de mise ou un nouveau PC casserait `uv`, donc plan-tools, code-rag,
+la CI de nuit et la boucle. Le simulateur retire Desktop Commander de la config et le signale.
+À décider (Francis) : examiner `chromium-bidi@157.0.8090-0` puis l'exempter précisément
+(`trust_policy_excludes`), ou sortir Desktop Commander de mise.
+
 ## Ce qu'aucun simulateur ne prouve
 
 Outlook / OST, le vrai OneDrive (371 `.qpl`), le compte claude.ai de Jo et ses connecteurs, l'appairage

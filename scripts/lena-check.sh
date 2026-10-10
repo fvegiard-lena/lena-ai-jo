@@ -18,8 +18,9 @@ step() {
 
 # shellcheck disable=SC2329  # called through step
 parity() {
-    sed -n '/^<!-- LENA:START -->$/,/^<!-- LENA:END -->$/p' AGENTS.md | sed '1d;$d' | diff -u docs/LENA.md - &&
-        diff -ru .claude/skills .agents/skills
+    tr -d '\r' < AGENTS.md | sed -n '/^<!-- LENA:START -->$/,/^<!-- LENA:END -->$/p' | sed '1d;$d' |
+        diff -u <(tr -d '\r' < docs/LENA.md) - &&
+        diff -ru --strip-trailing-cr .claude/skills .agents/skills
 }
 
 step bash scripts/lena-guard.sh "$base"

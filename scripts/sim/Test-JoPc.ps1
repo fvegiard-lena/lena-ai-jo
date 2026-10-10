@@ -43,7 +43,7 @@ function Invoke-Logged([string]$LogName, [scriptblock]$Block) {
 
 function Get-Ver([string]$Tool) {
     $line = Get-Content (Join-Path $Source 'config\VERSIONS.md') | Where-Object { $_ -match "^\| ``$Tool --version``" } | Select-Object -First 1
-    if ($line -match '\| ([0-9][0-9.]*)') { $Matches[1] } else { $null }
+    if ($line -match '^\|[^|]+\|\D*?([0-9]+\.[0-9]+(?:\.[0-9]+)?)') { $Matches[1] } else { $null }
 }
 
 # Comme une nouvelle session chez Jo : PATH relu du registre (winget y ajoute mise), shims mise devant.
@@ -106,11 +106,17 @@ foreach ($t in 'uv', 'opa') {
     if ($v) { $miseCfg = $miseCfg -replace "(?m)^$t = `"latest`"", "$t = `"$v`"" }
 }
 $miseCfg = $miseCfg -replace '(?m)^node = "lts"', 'node = "24.21.0"'
-$miseCfg = $miseCfg -replace '(\[tools\."npm:@wonderwhy-er/desktop-commander"\]\r?\nversion = )"latest"', '$1"0.2.52"'
+# Desktop Commander (appairage = PC de Jo seulement) : mise refuse de l'installer (dependance
+# chromium-bidi@157.0.8090-0 sans preuve de provenance) et un outil manquant fait echouer TOUS les
+# shims mise. Le simulateur l'enleve et le signale ; on ne contourne pas la verification.
+$dcBlock = '\[tools\."npm:@wonderwhy-er/desktop-commander"\]\r?\nversion = "latest"\r?\n'
+$hadDc = $miseCfg -match $dcBlock
+$miseCfg = $miseCfg -replace $dcBlock, ''
 Set-Content -Path (Join-Path $miseCfgDir 'config.toml') -Value $miseCfg
 $code = Invoke-Logged 'mise-install' { mise install --yes }
 Update-Path
-Add-Check 'mise install (config de Jo)' ($code -eq 0)
+Add-Check 'mise install (config de Jo, sans Desktop Commander)' ($code -eq 0)
+if ($hadDc) { Write-Host '[NOTE] Desktop Commander retire du simulateur : sur un PC neuf, mise refuserait son installation et casserait tous les shims (voir docs/SIMULATEUR.md).' }
 foreach ($t in 'uv', 'node', 'opa', 'git', 'claude') {
     $cmd = Get-Command $t -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     Add-Check "outil $t" ([bool]$cmd) $(if ($cmd) { $cmd.Source } else { 'introuvable' })
