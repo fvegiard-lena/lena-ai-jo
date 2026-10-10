@@ -26,6 +26,11 @@ snapshots/
 *.ost
 *.pst
 
+# Boucle autonome (scripts/lena-loop.sh) : journal, sorties des sessions, arret d'urgence
+results.tsv
+.lena-loop/
+STOP
+
 # Fichier parasite Windows
 NUL
 

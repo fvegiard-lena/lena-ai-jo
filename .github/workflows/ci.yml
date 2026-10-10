@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, francis-dev, Estimateur-2, estimateur-junior]
   pull_request:
     branches: [main]
 
@@ -70,6 +70,18 @@ jobs:
       - name: code-rag - pytest (unitaires)
         if: hashFiles('code-rag/pyproject.toml') != ''
         run: uv run --project code-rag pytest -q -m "not integration" code-rag
+
+      # Boucle autonome : politique OPA (policy/) + auto-test de scripts/lena-loop.sh (agent simule)
+      - name: Installer OPA
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: latest
+
+      - name: OPA - tests de la politique
+        run: opa test policy/ -v
+
+      - name: Boucle autonome - auto-test
+        run: bash scripts/test-lena-loop.sh
 
       - name: Biome
         if: hashFiles('**/biome.json') != ''
