@@ -60,3 +60,48 @@ jobs:
         with:
           name: jo-pc-sim-logs
           path: ${{ runner.temp }}\sim-out
+
+  # Test de bout en bout de code-rag contre de vrais Qdrant + Ollama Windows (comme sur le PC de Jo),
+  # avec le meme modele d'embeddings (qwen3-embedding:8b). Ailleurs ce test est toujours saute.
+  code-rag-integration:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Qdrant + Ollama
+        shell: pwsh
+        run: |
+          $ProgressPreference = 'SilentlyContinue'
+          $t = $env:RUNNER_TEMP
+          function Get-Asset($repo, $pattern) {
+            $rel = Invoke-RestMethod "https://api.github.com/repos/$repo/releases/latest" -Headers @{ Authorization = "Bearer ${{ github.token }}" }
+            $a = $rel.assets | Where-Object name -match $pattern | Select-Object -First 1
+            $dst = Join-Path $t $a.name
+            Invoke-WebRequest $a.browser_download_url -OutFile $dst
+            $dst
+          }
+          Expand-Archive (Get-Asset 'qdrant/qdrant' 'x86_64-pc-windows-msvc\.zip$') "$t\qdrant"
+          Expand-Archive (Get-Asset 'ollama/ollama' '^ollama-windows-amd64\.zip$') "$t\ollama"
+          $qd = Get-ChildItem "$t\qdrant" -Recurse -Filter qdrant.exe | Select-Object -First 1
+          $ol = Get-ChildItem "$t\ollama" -Recurse -Filter ollama.exe | Select-Object -First 1
+          Start-Process $qd.FullName -WorkingDirectory $qd.DirectoryName -RedirectStandardOutput "$t\qdrant.log" -RedirectStandardError "$t\qdrant.err"
+          Start-Process $ol.FullName -ArgumentList serve -RedirectStandardOutput "$t\ollama.log" -RedirectStandardError "$t\ollama.err"
+          $deadline = (Get-Date).AddMinutes(3)
+          do {
+            Start-Sleep 2
+            $up = $true
+            try { Invoke-RestMethod http://localhost:6333/healthz | Out-Null; Invoke-RestMethod http://localhost:11434/api/tags | Out-Null } catch { $up = $false }
+          } until ($up -or (Get-Date) -gt $deadline)
+          if (-not $up) { throw 'Qdrant ou Ollama ne repond pas' }
+          & $ol.FullName pull qwen3-embedding:8b
+          if ($LASTEXITCODE) { throw 'ollama pull a echoue' }
+
+      - name: code-rag - test d'integration (Qdrant + Ollama reels)
+        shell: pwsh
+        run: |
+          uv run --project code-rag pytest -v -m integration -rs code-rag 2>&1 | Tee-Object "$env:RUNNER_TEMP\integration.log"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          if (Select-String -Path "$env:RUNNER_TEMP\integration.log" -Pattern 'SKIPPED' -Quiet) { throw 'Test d''integration saute : services absents' }
