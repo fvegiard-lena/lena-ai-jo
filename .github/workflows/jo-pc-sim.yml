@@ -32,12 +32,7 @@ jobs:
           }
           $shims = Join-Path $env:LOCALAPPDATA 'mise\shims'
           New-Item -ItemType Directory -Force -Path $shims | Out-Null
-          $shims | Add-Content $env:GITHUB_PATH
-          $miseExe = Get-Command mise -ErrorAction SilentlyContinue
-          if (-not $miseExe) {
-            $found = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages", "$env:ProgramData\chocolatey\bin" -Recurse -Filter mise.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-            Split-Path $found.FullName | Add-Content $env:GITHUB_PATH
-          }
+          $shims, (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links') | Add-Content $env:GITHUB_PATH
 
       - name: Claude Code (version de config/VERSIONS.md)
         shell: pwsh
@@ -70,7 +65,8 @@ jobs:
 
       - uses: astral-sh/setup-uv@v6
 
-      - name: Qdrant + Ollama
+      # Un seul step : sous Windows, le runner tue les process d'arriere-plan a la fin de chaque step.
+      - name: code-rag - test d'integration (Qdrant + Ollama reels)
         shell: pwsh
         run: |
           $ProgressPreference = 'SilentlyContinue'
@@ -97,10 +93,6 @@ jobs:
           if (-not $up) { throw 'Qdrant ou Ollama ne repond pas' }
           & $ol.FullName pull qwen3-embedding:8b
           if ($LASTEXITCODE) { throw 'ollama pull a echoue' }
-
-      - name: code-rag - test d'integration (Qdrant + Ollama reels)
-        shell: pwsh
-        run: |
           uv run --project code-rag pytest -v -m integration -rs code-rag 2>&1 | Tee-Object "$env:RUNNER_TEMP\integration.log"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           if (Select-String -Path "$env:RUNNER_TEMP\integration.log" -Pattern 'SKIPPED' -Quiet) { throw 'Test d''integration saute : services absents' }

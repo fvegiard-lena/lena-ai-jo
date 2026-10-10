@@ -46,11 +46,13 @@ function Get-Ver([string]$Tool) {
     if ($line -match '\| ([0-9][0-9.]*)') { $Matches[1] } else { $null }
 }
 
+# Comme une nouvelle session chez Jo : PATH relu du registre (winget y ajoute mise), shims mise devant.
 function Update-Path {
     $env:Path = @(
         (Join-Path $env:LOCALAPPDATA 'mise\shims'),
         [Environment]::GetEnvironmentVariable('Path', 'User'),
-        [Environment]::GetEnvironmentVariable('Path', 'Machine')
+        [Environment]::GetEnvironmentVariable('Path', 'Machine'),
+        $env:Path
     ) -join ';'
 }
 
@@ -94,6 +96,8 @@ Add-Check 'lecteur D: (sauvegardes)' (Test-Path 'D:\')
 
 # --- 2. Outils aux versions de Jo -----------------------------------------------------
 Write-Host "`n== Outils (versions de config/VERSIONS.md) =="
+Update-Path
+Add-Check 'mise sur le PATH (installe par winget)' ([bool](Get-Command mise -ErrorAction SilentlyContinue))
 $miseCfgDir = Join-Path $env:USERPROFILE '.config\mise'
 New-Item -ItemType Directory -Force -Path $miseCfgDir | Out-Null
 $miseCfg = Get-Content -Raw (Join-Path $Source 'config\mise\config.toml')
