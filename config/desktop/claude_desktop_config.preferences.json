@@ -29,6 +29,21 @@
       "http://127.0.0.1:8000",
       "http://127.0.0.1:8080"
     ],
+    "remoteSessionFolderGrants": {
+      "session_015vETVf1d4JMWgCH3ZWzdha": [
+        {
+          "display": "S:\\Soumission\\Soumission 2026\\s-1904 ville de varenne prevert trouble",
+          "unc": "\\\\dre-bou-fs-01\\Commun\\Soumission\\Soumission 2026\\s-1904 ville de varenne prevert trouble",
+          "letter": "S"
+        }
+      ],
+      "session_01Wy4wVS3Me9cMuUSBwaDfxB": [
+        "%USERPROFILE%\\BR_EP2026-082"
+      ],
+      "session_016apfeEKgd35xHkLs3uqGFV": [
+        "%USERPROFILE%\\S-1905_cegep"
+      ]
+    },
     "coworkLegacyRootGrantsPruned": true,
     "coworkHasBoundRoutine": {
       "<uuid-4>": true
@@ -107,10 +122,11 @@
               "sortBy": "recency",
               "ascending": false,
               "show": {
-                "metadata": true,
+                "metadata": false,
                 "emptyGroups": false
               },
-              "collapsed": false
+              "collapsed": false,
+              "shown": true
             },
             {
               "id": "routines",
@@ -120,23 +136,41 @@
               "sortBy": "recency",
               "ascending": false,
               "show": {
-                "metadata": true,
+                "metadata": false,
                 "emptyGroups": false
               },
-              "collapsed": true
+              "collapsed": true,
+              "shown": false
+            },
+            {
+              "id": "cg-<uuid-8>",
+              "kind": "manual",
+              "name": "Estimateur",
+              "order": 2,
+              "sortBy": "recency",
+              "ascending": false,
+              "show": {
+                "metadata": false,
+                "emptyGroups": false
+              },
+              "collapsed": false,
+              "shown": true,
+              "members": []
             },
             {
               "id": "sessions",
               "kind": "sessions",
               "name": "",
-              "order": 2,
+              "order": 3,
+              "groupBy": "none",
               "sortBy": "recency",
               "ascending": false,
               "show": {
-                "metadata": true,
+                "metadata": false,
                 "emptyGroups": false
               },
-              "collapsed": false
+              "collapsed": false,
+              "shown": true
             }
           ],
           "migratedFrom": 1,
@@ -158,21 +192,6 @@
       "epitaxy-default-transcript-view-nudge": {
         "verbose": "b33960b6"
       }
-    },
-    "remoteSessionFolderGrants": {
-      "session_015vETVf1d4JMWgCH3ZWzdha": [
-        {
-          "display": "S:\\Soumission\\Soumission 2026\\s-1904 ville de varenne prevert trouble",
-          "unc": "\\\\dre-bou-fs-01\\Commun\\Soumission\\Soumission 2026\\s-1904 ville de varenne prevert trouble",
-          "letter": "S"
-        }
-      ],
-      "session_01Wy4wVS3Me9cMuUSBwaDfxB": [
-        "%USERPROFILE%\\BR_EP2026-082"
-      ],
-      "session_016apfeEKgd35xHkLs3uqGFV": [
-        "%USERPROFILE%\\S-1905_cegep"
-      ]
     }
   }
 }
