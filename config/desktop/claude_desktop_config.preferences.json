@@ -192,6 +192,7 @@
       "epitaxy-default-transcript-view-nudge": {
         "verbose": "b33960b6"
       }
-    }
+    },
+    "userDataOutsidePackageAnswer": false
   }
 }
