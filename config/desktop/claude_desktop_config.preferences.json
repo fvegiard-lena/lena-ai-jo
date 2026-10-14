@@ -56,6 +56,7 @@
     "ccdScheduledTasksEnabled": true,
     "storeReadCacheLatched": true,
     "windowsAppJobLatched": true,
+    "userDataOutsidePackageAnswer": false,
     "sidebarMode": "chat",
     "bypassPermissionsModeEnabled": true,
     "bypassPermissionsOptInByAccount": {
@@ -117,6 +118,7 @@
             {
               "id": "pinned",
               "kind": "pinned",
+              "v": 2,
               "name": "",
               "order": 0,
               "sortBy": "recency",
@@ -131,6 +133,7 @@
             {
               "id": "routines",
               "kind": "routines",
+              "v": 2,
               "name": "",
               "order": 1,
               "sortBy": "recency",
@@ -145,6 +148,7 @@
             {
               "id": "cg-<uuid-8>",
               "kind": "manual",
+              "v": 2,
               "name": "Estimateur",
               "order": 2,
               "sortBy": "recency",
@@ -160,6 +164,7 @@
             {
               "id": "sessions",
               "kind": "sessions",
+              "v": 2,
               "name": "",
               "order": 3,
               "groupBy": "none",
@@ -193,6 +198,6 @@
         "verbose": "b33960b6"
       }
     },
-    "userDataOutsidePackageAnswer": false
+    "httpCacheZstdLatched": true
   }
 }
