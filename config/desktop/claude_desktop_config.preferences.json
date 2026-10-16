@@ -54,8 +54,8 @@
     "coworkHipaaRestricted": false,
     "orgWorkAcrossAppsDisabled": false,
     "ccdScheduledTasksEnabled": true,
-    "storeReadCacheLatched": true,
     "windowsAppJobLatched": true,
+    "httpCacheZstdLatched": true,
     "userDataOutsidePackageAnswer": false,
     "sidebarMode": "chat",
     "bypassPermissionsModeEnabled": true,
@@ -99,10 +99,7 @@
           "colWeightsByMode": {},
           "rowSplit": 0.5,
           "draftNonce": 0,
-          "lastPrimaryCodeSession": {
-            "id": "local_<uuid-7>",
-            "type": "local"
-          }
+          "lastPrimaryCodeSession": null
         },
         "version": 4
       },
@@ -146,7 +143,7 @@
               "shown": false
             },
             {
-              "id": "cg-<uuid-8>",
+              "id": "cg-<uuid-7>",
               "kind": "manual",
               "v": 2,
               "name": "Estimateur",
@@ -180,24 +177,68 @@
           ],
           "migratedFrom": 1,
           "prefsSeeded": true
+        },
+        "<uuid-6>/<uuid-8>": {
+          "sections": [
+            {
+              "id": "pinned",
+              "kind": "pinned",
+              "v": 2,
+              "name": "",
+              "order": 0,
+              "sortBy": "recency",
+              "ascending": false,
+              "show": {
+                "metadata": false,
+                "emptyGroups": false
+              },
+              "collapsed": true,
+              "shown": true
+            },
+            {
+              "id": "routines",
+              "kind": "routines",
+              "v": 2,
+              "name": "",
+              "order": 1,
+              "sortBy": "recency",
+              "ascending": false,
+              "show": {
+                "metadata": false,
+                "emptyGroups": false
+              },
+              "collapsed": true,
+              "shown": false
+            },
+            {
+              "id": "sessions",
+              "kind": "sessions",
+              "v": 2,
+              "name": "",
+              "order": 2,
+              "sortBy": "recency",
+              "ascending": false,
+              "show": {
+                "metadata": false,
+                "emptyGroups": false
+              },
+              "collapsed": false,
+              "shown": true
+            }
+          ],
+          "migratedFrom": 1,
+          "prefsSeeded": true
         }
       },
       "epitaxy-serene-whistle-decided": {
-        "local_<uuid-7>": {
+        "local_<uuid-9>": {
           "base": "claude-fable-5-1",
           "kept": true
         }
       },
-      "epitaxy-perm-mode-acks.<uuid-5>": [
-        "%USERPROFILE%:bypassPermissions"
-      ],
-      "epitaxy-folder-permission-mode.<uuid-5>": {
-        "%USERPROFILE%": "bypassPermissions"
-      },
       "epitaxy-default-transcript-view-nudge": {
         "verbose": "b33960b6"
       }
-    },
-    "httpCacheZstdLatched": true
+    }
   }
 }
