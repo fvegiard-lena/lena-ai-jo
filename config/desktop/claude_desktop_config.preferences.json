@@ -56,7 +56,7 @@
     "ccdScheduledTasksEnabled": true,
     "windowsAppJobLatched": true,
     "httpCacheZstdLatched": true,
-    "userDataOutsidePackageAnswer": false,
+    "userDataOutsidePackageAnswer": true,
     "sidebarMode": "chat",
     "bypassPermissionsModeEnabled": true,
     "bypassPermissionsOptInByAccount": {
@@ -122,7 +122,8 @@
               "ascending": false,
               "show": {
                 "metadata": false,
-                "emptyGroups": false
+                "emptyGroups": false,
+                "sideChats": false
               },
               "collapsed": false,
               "shown": true
@@ -137,7 +138,8 @@
               "ascending": false,
               "show": {
                 "metadata": false,
-                "emptyGroups": false
+                "emptyGroups": false,
+                "sideChats": false
               },
               "collapsed": true,
               "shown": false
@@ -152,7 +154,8 @@
               "ascending": false,
               "show": {
                 "metadata": false,
-                "emptyGroups": false
+                "emptyGroups": false,
+                "sideChats": false
               },
               "collapsed": false,
               "shown": true,
@@ -169,7 +172,8 @@
               "ascending": false,
               "show": {
                 "metadata": false,
-                "emptyGroups": false
+                "emptyGroups": false,
+                "sideChats": false
               },
               "collapsed": false,
               "shown": true
@@ -190,7 +194,8 @@
               "ascending": false,
               "show": {
                 "metadata": false,
-                "emptyGroups": false
+                "emptyGroups": false,
+                "sideChats": false
               },
               "collapsed": true,
               "shown": true
@@ -205,7 +210,8 @@
               "ascending": false,
               "show": {
                 "metadata": false,
-                "emptyGroups": false
+                "emptyGroups": false,
+                "sideChats": false
               },
               "collapsed": true,
               "shown": false
@@ -220,7 +226,8 @@
               "ascending": false,
               "show": {
                 "metadata": false,
-                "emptyGroups": false
+                "emptyGroups": false,
+                "sideChats": false
               },
               "collapsed": false,
               "shown": true
