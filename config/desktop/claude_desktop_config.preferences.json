@@ -54,7 +54,6 @@
     "coworkHipaaRestricted": false,
     "orgWorkAcrossAppsDisabled": false,
     "ccdScheduledTasksEnabled": true,
-    "windowsAppJobLatched": true,
     "httpCacheZstdLatched": true,
     "userDataOutsidePackageAnswer": true,
     "sidebarMode": "chat",
@@ -246,6 +245,8 @@
       "epitaxy-default-transcript-view-nudge": {
         "verbose": "b33960b6"
       }
-    }
+    },
+    "userDataMoveAtNextLaunch": false,
+    "userDataCarryAtNextLaunch": false
   }
 }
