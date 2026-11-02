@@ -55,6 +55,8 @@
     "orgWorkAcrossAppsDisabled": false,
     "ccdScheduledTasksEnabled": true,
     "httpCacheZstdLatched": true,
+    "userDataCarryAtNextLaunch": false,
+    "userDataMoveAtNextLaunch": false,
     "userDataOutsidePackageAnswer": true,
     "sidebarMode": "chat",
     "bypassPermissionsModeEnabled": true,
@@ -122,7 +124,8 @@
               "show": {
                 "metadata": false,
                 "emptyGroups": false,
-                "sideChats": false
+                "sideChats": false,
+                "slack": true
               },
               "collapsed": false,
               "shown": true
@@ -138,7 +141,8 @@
               "show": {
                 "metadata": false,
                 "emptyGroups": false,
-                "sideChats": false
+                "sideChats": false,
+                "slack": true
               },
               "collapsed": true,
               "shown": false
@@ -154,7 +158,8 @@
               "show": {
                 "metadata": false,
                 "emptyGroups": false,
-                "sideChats": false
+                "sideChats": false,
+                "slack": true
               },
               "collapsed": false,
               "shown": true,
@@ -172,7 +177,8 @@
               "show": {
                 "metadata": false,
                 "emptyGroups": false,
-                "sideChats": false
+                "sideChats": false,
+                "slack": true
               },
               "collapsed": false,
               "shown": true
@@ -194,7 +200,8 @@
               "show": {
                 "metadata": false,
                 "emptyGroups": false,
-                "sideChats": false
+                "sideChats": false,
+                "slack": true
               },
               "collapsed": true,
               "shown": true
@@ -210,7 +217,8 @@
               "show": {
                 "metadata": false,
                 "emptyGroups": false,
-                "sideChats": false
+                "sideChats": false,
+                "slack": true
               },
               "collapsed": true,
               "shown": false
@@ -226,7 +234,8 @@
               "show": {
                 "metadata": false,
                 "emptyGroups": false,
-                "sideChats": false
+                "sideChats": false,
+                "slack": true
               },
               "collapsed": false,
               "shown": true
@@ -245,8 +254,6 @@
       "epitaxy-default-transcript-view-nudge": {
         "verbose": "b33960b6"
       }
-    },
-    "userDataMoveAtNextLaunch": false,
-    "userDataCarryAtNextLaunch": false
+    }
   }
 }
