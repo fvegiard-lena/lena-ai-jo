@@ -1,0 +1,17 @@
+flowchart LR
+    E1[edit test_imports.py] --> P1[pre-write-provenance<br/>PASS: row exists in todo.md]
+    P1 --> W1[write]
+    W1 --> P2[post-edit-verify<br/>PASS: ruff + mypy green on file]
+    P2 --> L1[log to verify.log]
+
+    C1[pytest -q] --> P3[post-bash-capture<br/>PASS: logged]
+    P3 --> L2[tool-usage.log]
+
+    S[Stop] --> G[stop-gate]
+    G --> C1v{clean-room.log<br/>= ALL GREEN?}
+    C1v -->|yes| C2v{unchecked<br/>todo items?}
+    C1v -->|no| BLOCK1[STOP BLOCKED]
+    C2v -->|no| C3v{bare<br/>[unverified]?}
+    C2v -->|yes| BLOCK2[STOP BLOCKED]
+    C3v -->|no| OK[allow stop]
+    C3v -->|yes| BLOCK3[STOP BLOCKED]

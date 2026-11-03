@@ -1,0 +1,35 @@
+flowchart LR
+    subgraph Need
+        N1[Current docs]
+        N2[Repo state]
+        N3[Run tests]
+        N4[Read/write files]
+        N5[Search error]
+        N6[Browser render]
+        N7[Issue tracker]
+        N8[Dependency versions]
+    end
+
+    subgraph MCP
+        M1[fetch / web-search MCP]
+        M2[github MCP]
+        M3[shell / sandbox MCP]
+        M4[filesystem MCP]
+        M5[browser MCP playwright]
+        M6[package-registry MCP]
+        M7[context7 / docs MCP]
+    end
+
+    N1 --> M7
+    N1 --> M1
+    N2 --> M2
+    N2 --> M4
+    N3 --> M3
+    N4 --> M4
+    N5 --> M1
+    N6 --> M5
+    N7 --> M2
+    N8 --> M6
+
+    M7 -.fallback.-> M1
+    M2 -.fallback.-> M3

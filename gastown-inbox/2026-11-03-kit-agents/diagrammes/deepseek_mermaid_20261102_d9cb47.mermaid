@@ -1,0 +1,33 @@
+flowchart TD
+    A[Blocker hit] --> B{Type?}
+    B -->|"I don't know"| C[KNOWLEDGE]
+    B -->|"Need credential/decision"| D[AUTHORITY]
+    B -->|"Policy forbids"| E[POLICY]
+
+    C --> F[Ledger row 1: official docs<br/>fetch pinned version]
+    F --> G{Answer?}
+    G -->|Yes| H[Apply + verify]
+    G -->|No| I[Ledger row 2: repo files<br/>read relevant code/tests]
+    I --> J{Answer?}
+    J -->|Yes| H
+    J -->|No| K[Ledger row 3: changelog<br/>version boundary]
+    K --> L{Answer?}
+    L -->|Yes| H
+    L -->|No| M[Ledger row 4: source code<br/>read module]
+    M --> N{Answer?}
+    N -->|Yes| H
+    N -->|No| O[Ledger row 5: issues<br/>search exact error]
+    O --> P{Answer?}
+    P -->|Yes| H
+    P -->|No| Q[Ledger row 6: web search<br/>fetch top maintained]
+    Q --> R{Answer?}
+    R -->|Yes| H
+    R -->|No| S[Ledger row 7: community<br/>with version caveat]
+    S --> T{Answer?}
+    T -->|Yes| H
+    T -->|No| U[Ledger COMPLETE]
+    U --> V[STOP with ledger + question]
+
+    D --> W[One comment, exact question<br/>+ ledger]
+    E --> W
+    W --> X[Stop]

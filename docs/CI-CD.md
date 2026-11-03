@@ -46,7 +46,7 @@ gh api -X PUT repos/fvegiard-lena/lena-ai-jo/branches/main/protection `
 
 ## 2. CI de nuit — `scripts/lena-nightly.ps1` (Claude Code headless)
 
-Tâche planifiée **`lena-nightly-ci`** : 02:00 heure locale (suit l'heure d'été), RunLevel **Limited**, `-NonInteractive`, 2 h maximum, rattrapée au réveil si le PC dormait (`StartWhenAvailable`). Créée par `pwsh -File scripts\install-tasks.ps1`.
+Tâche planifiée **`lena-nightly-ci`** : 02:00 heure locale (suit l'heure d'été), RunLevel **Limited**, `-NonInteractive`, 2 h maximum, rattrapée au réveil si le PC dormait (`StartWhenAvailable`). Créée par `pwsh -File "$env:USERPROFILE\dev\lena-ai-jo\scripts\install-tasks.ps1"` (depuis le checkout principal seulement : le script refuse un jumeau).
 
 ### Ce que fait le script
 
