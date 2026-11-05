@@ -56,7 +56,7 @@
     "ccdScheduledTasksEnabled": true,
     "httpCacheZstdLatched": true,
     "userDataCarryAtNextLaunch": false,
-    "userDataMoveAtNextLaunch": false,
+    "userDataMoveAtNextLaunch": true,
     "userDataOutsidePackageAnswer": true,
     "sidebarMode": "chat",
     "bypassPermissionsModeEnabled": true,
