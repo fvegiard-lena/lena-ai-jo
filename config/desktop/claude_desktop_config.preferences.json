@@ -55,7 +55,7 @@
     "orgWorkAcrossAppsDisabled": false,
     "ccdScheduledTasksEnabled": true,
     "httpCacheZstdLatched": true,
-    "userDataCarryAtNextLaunch": false,
+    "userDataCarryAtNextLaunch": true,
     "userDataMoveAtNextLaunch": true,
     "userDataOutsidePackageAnswer": true,
     "sidebarMode": "chat",
