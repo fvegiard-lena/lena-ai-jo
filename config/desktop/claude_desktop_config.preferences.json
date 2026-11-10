@@ -253,7 +253,16 @@
       },
       "epitaxy-default-transcript-view-nudge": {
         "verbose": "b33960b6"
+      },
+      "cowork-sleepy-popcorn-decided": {
+        "sha256_5b7490c39582bdd5a16516498fb4add0700d2501e144405a42543eb1cab330f8": {
+          "base": "claude-fable-5-1",
+          "state": "done"
+        }
       }
-    }
+    },
+    "localAgentModeTrustedFolders": [
+      "S:\\Soumission\\Soumission 2026\\s-1939 cmpl"
+    ]
   }
 }
