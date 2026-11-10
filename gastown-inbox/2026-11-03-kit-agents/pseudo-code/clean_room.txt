@@ -1,0 +1,20 @@
+FUNCTION clean_room():
+    gates = [lint, format, typecheck, build, tests]
+
+    FOR gate IN gates:
+        tool = ensure_tool_installed(gate)   # §1.4 GUARDED-FIX
+        result = run(tool)
+
+        if result.violations:
+            FOR v IN result.violations:
+                correct(v)                   # §3.1 loop
+            result = run(tool)               # re-run after all fixes
+
+        if not result.green:
+            LOG("STOP BLOCKED: gate " + gate + " still failing")
+            RETURN FAIL(gate, result)
+
+        log_green(gate, result)              # writes to tasks/.logs/clean-room.log
+
+    write("ALL GREEN")
+    RETURN OK

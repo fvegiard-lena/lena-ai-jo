@@ -16,6 +16,16 @@ $ErrorActionPreference = 'Stop'
 $repo    = Split-Path -Parent $PSScriptRoot
 $scripts = Join-Path $repo 'scripts'
 
+# Les taches doivent pointer sur le checkout principal (lena-ai-jo, branche main) : lancees depuis un
+# jumeau (lena-<branche>, RUNBOOK section 11), auto-commit et nightly refuseraient de tourner a chaque fois.
+$leaf   = Split-Path -Leaf $repo
+$branch = (git -C $repo rev-parse --abbrev-ref HEAD 2>$null | Out-String).Trim()
+if ($leaf -ne 'lena-ai-jo' -or $branch -ne 'main') {
+    Write-Host "Refus : ce script doit etre lance depuis le checkout principal lena-ai-jo sur main (ici : '$leaf' sur '$branch')."
+    Write-Host "Commande : pwsh -File `"`$env:USERPROFILE\dev\lena-ai-jo\scripts\install-tasks.ps1`""
+    exit 1
+}
+
 # Alias Store de pwsh : stable d'une version a l'autre (jamais le chemin Program Files\WindowsApps\...7.x)
 $pwsh = Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps\pwsh.exe'
 if (-not (Test-Path $pwsh)) { $pwsh = (Get-Command pwsh -ErrorAction Stop).Source }

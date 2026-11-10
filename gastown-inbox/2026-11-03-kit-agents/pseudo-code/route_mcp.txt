@@ -1,0 +1,16 @@
+ROUTE(need):
+    FOR server IN routing_table[need].chain:
+        if server.available:
+            try:
+                result = server.call(need.query)
+                if result.usable:
+                    log("used: " + server.name + " → " + result.summary)
+                    return result
+                else:
+                    log("partial: " + server.name + " → " + result.summary)
+            catch e:
+                log("error: " + server.name + " → " + e.message)
+                continue
+
+    # If chain exhausted → §1.6 ledger row gets this entry
+    raise SearchExhausted(need, chain_tried = [...])
