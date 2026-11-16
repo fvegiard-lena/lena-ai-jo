@@ -106,9 +106,10 @@ staged cat-file blob :AGENTS.md | cmp -s - "$tmp/new" ||
     die "AGENTS.md, as git would commit it, still differs from docs/LENA.md. Check: git ls-files --eol AGENTS.md docs/LENA.md"
 staged_add -A -- .claude/skills .agents/skills
 tab="$(printf '\t')"
-# Content and path of every file git would commit under $1, paths relative to $1 (not the mode: the CI's
-# diff does not compare it, and a Windows checkout does not record the executable bit).
-as_committed() { staged -c core.quotepath=false ls-files -s -- "$1" | cut -d' ' -f2- | sed "s|$tab$1/|$tab|"; }
+# Type, content and path of every file git would commit under $1, paths relative to $1. The permission bits
+# are left out (the CI's diff does not compare them, and a Windows checkout does not record the executable
+# bit); the type stays: a symlink and a regular file are not the same thing for the CI.
+as_committed() { staged -c core.quotepath=false ls-files -s -- "$1" | sed "s|^100[0-7]*|100|; s|$tab$1/|$tab|"; }
 source_side="$(as_committed .claude/skills)"
 [ -n "$source_side" ] || die ".claude/skills: git would commit no file from it"
 if [ "$source_side" != "$(as_committed .agents/skills)" ]; then

@@ -594,8 +594,10 @@ $code = Invoke-Logged 'auto-commit-final' { pwsh -NoProfile -File (Join-Path $ma
 Add-Check 'auto-commit fonctionne encore (code 0), PC a jour avec origin, checkout propre' (
     ($code -eq 0) -and ((Get-Sha $main 'HEAD') -eq (Get-Sha $origin 'main')) -and -not (Get-Status $main)) (Get-Status $main)
 Add-Check 'a la toute fin : compte principal de Jo intact depuis l''arrivee de la PR (tests, sync-agents, install-tasks, jumeaux et lanceur compris)' ((Get-ProfilePrint) -ceq $profBefore)
-Add-Check 'a la toute fin : config git globale et reglages du depot de Jo (config, hooks, info) intacts depuis l''arrivee de la PR' (
-    ((Get-GitGlobal) -ceq $gitGlobalBefore) -and ((Get-RepoSettingsPrint $main) -ceq $repoSettingsBefore))
+$globalOk = (Get-GitGlobal) -ceq $gitGlobalBefore
+$settingsOk = (Get-RepoSettingsPrint $main) -ceq $repoSettingsBefore
+Add-Check 'a la toute fin : config git globale et reglages du depot de Jo (config, hooks, info) intacts depuis l''arrivee de la PR' ($globalOk -and $settingsOk) $(
+    if (-not ($globalOk -and $settingsOk)) { "config git globale : $(if ($globalOk) { 'inchangee' } else { 'changee' }) ; reglages du depot : $(if ($settingsOk) { 'inchanges' } else { 'changes' })" })
 $rootExtra = @(Get-ProfileRoot | Where-Object { $_ -notin $rootArrival -and $_ -ne '.claude-routeur' })
 Add-Check 'racine du profil depuis l''arrivee de la PR : rien d''autre que le dossier de config du compte estimateur' ($rootExtra.Count -eq 0) ($rootExtra -join ', ') $false
 
