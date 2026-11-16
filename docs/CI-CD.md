@@ -6,7 +6,8 @@ Trois couches, de la plus simple à la plus poussée :
 
 | Couche | Où ça roule | Quand | Ce que ça fait | Coût |
 |---|---|---|---|---|
-| 1. GitHub Actions `ci.yml` | Serveurs GitHub (Ubuntu) | Chaque push / PR sur `main` | Secrets (gitleaks), JSON, lint + tests | Gratuit (repo public) |
+| 1. GitHub Actions `ci.yml` | Serveurs GitHub (Ubuntu) | Chaque push / PR sur `main` | Secrets (gitleaks), parité Claude / ChatGPT, JSON, lint + tests | Gratuit (repo public) |
+| 1 bis. GitHub Actions `essai-pc-jo.yml` | Serveurs GitHub (Windows) | Chaque PR vers `main`, ou à la main | Un PC de Jo simulé reçoit la PR par les vrais scripts planifiés ; installation des jumeaux | Gratuit (repo public) |
 | 2. CI de nuit `lena-nightly-ci` | PC de Jo | 02:00 chaque nuit | Tests ; si rouge, Claude Code headless tente une correction | 2 $ max par nuit, seulement si rouge |
 | 3. `claude-code-action` (plus tard) | Runner auto-hébergé sur le PC | Sur demande | Claude dans GitHub (issues, PR) | Abonnement Claude |
 
@@ -17,15 +18,29 @@ Trois couches, de la plus simple à la plus poussée :
 À chaque push ou PR sur `main` :
 
 1. **gitleaks** sur tout l'historique (`.gitleaks.toml` : règles par défaut, **aucune** exception, `docs/` compris).
-2. **JSON valides** dans `config/` (`python3 -m json.tool`).
-3. **plan-tools** : `uv sync --locked`, `ruff check`, `pytest`.
-4. **code-rag** : `uv sync --locked`, `ruff check`, `pytest -m "not integration"` (les tests d'intégration demandent Qdrant + Ollama : en local seulement).
-5. **Biome** si un `biome.json` existe.
+2. **Parité Claude / ChatGPT** : `AGENTS.md` (bloc `LENA:START` / `LENA:END`) identique à `docs/LENA.md`, `.agents/skills` identique à `.claude/skills`. Rouge → `bash scripts/sync-agents.sh` (RUNBOOK §12).
+3. **JSON valides** dans `config/` (`python3 -m json.tool`).
+4. **plan-tools** : `uv sync --locked`, `ruff check`, `pytest`.
+5. **code-rag** : `uv sync --locked`, `ruff check`, `pytest -m "not integration"` (les tests d'intégration demandent Qdrant + Ollama : en local seulement).
+6. **Biome** si un `biome.json` existe.
 
 `--locked` fait échouer la CI si `uv.lock` n'a pas suivi `pyproject.toml` : après un `uv add`, toujours commiter le `uv.lock`.
 Permissions du jeton : `contents: read`, `pull-requests: read` (lecture seule).
 
-**Aujourd'hui, c'est un statut seulement** (✓ ou ✗ sur le commit) : rien n'empêche un push rouge. Le repo est maintenant **public**, donc la protection de branche **est disponible** sur ce plan — **à activer via `gh api`** :
+### Essai PC de Jo — `.github/workflows/essai-pc-jo.yml`
+
+À chaque PR vers `main` (ou à la main : onglet Actions → « Essai PC de Jo » → *Run workflow*), deux runners Windows jetables lancent `scripts/ci/essai-pc-jo.ps1`. Rien ne sort du runner (« origin » y est un dépôt nu local) ; ni GitHub ni le vrai PC de Jo ne sont touchés.
+
+| Job | Ce qu'il rejoue | Ce qu'il prouve |
+|---|---|---|
+| `pc-jo` | Le PC de Jo part de `main` d'avant la PR (checkout en CRLF, vraies tâches planifiées, snapshot poussé). La PR entre dans `main` par merge commit. Le PC la reçoit par `auto-commit.ps1` puis `lena-nightly.ps1`. Les jumeaux `Estimateur-2` et `estimateur-junior` sont installés à côté. | Les scripts de production de Jo, ses tâches planifiées, son checkout et son `%USERPROFILE%\.claude` ne changent pas ; les tests passent sur Windows ; le lanceur d'un jumeau part sous le bon dossier de config ; `install-tasks.ps1` refuse un jumeau ; le pire cas (fichier non suivi sur un chemin de la PR) échoue net sans rien perdre. |
+| `pc-neuf` | Un PC sans mise ni Claude Code lance `install-twin.ps1 -Branch Estimateur-2`. | Le script installe ce qui manque et monte le jumeau. Les outils que le runner ne peut pas installer (réseau, winget) sortent en avertissement, pas en échec. |
+
+Résultat : tableau OK / FAIL / avertissement et taux de succès dans l'onglet *Summary* du run ; journaux détaillés dans l'artefact du run. **Ce n'est pas un check obligatoire** (seul `ci` l'est) : à regarder avant de merger. Le script refuse de tourner ailleurs que sur un runner GitHub hébergé, et si `%USERPROFILE%\dev\lena-ai-jo` existe déjà.
+
+### Protection de `main`
+
+**`main` est protégée** (constaté le 2026-11-16) : le check `ci` doit être vert pour merger une PR. La commande qui règle cette protection :
 
 ```powershell
 gh api -X PUT repos/fvegiard-lena/lena-ai-jo/branches/main/protection `

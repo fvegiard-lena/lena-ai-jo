@@ -1,0 +1,88 @@
+name: Essai PC de Jo
+
+# Avant un merge dans main : rejoue sur des runners Windows jetables ce que le PC de Jo (et le PC d'un
+# estimateur) vivra, avec les vrais scripts du repo (scripts/ci/essai-pc-jo.ps1). Rien ne sort du runner :
+# "origin" y est un depot nu local. Pas un check obligatoire (la protection de main n'exige que "ci").
+# Ne tourne pas sur les push de main (snapshots de Jo) : seulement sur les PR vers main, ou a la main.
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: essai-pc-jo-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pc-jo:
+    name: PC de Jo (mise a jour + jumeaux)
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # il faut main (avant la PR) et la tete de la PR
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Essai
+        shell: pwsh
+        env:
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+          ESSAI_OUT: ${{ runner.temp }}\essai-out
+        run: pwsh -NoProfile -File scripts\ci\essai-pc-jo.ps1 -Scenario pc-jo
+
+      - name: Journaux (si echec)
+        if: failure()
+        shell: pwsh
+        run: |
+          Get-ChildItem "$env:RUNNER_TEMP\essai-out" -Filter *.log -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Host "::group::$($_.Name)"
+            Get-Content $_.FullName -Tail 80
+            Write-Host '::endgroup::'
+          }
+
+      - name: Journaux (artefact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: essai-pc-jo
+          path: ${{ runner.temp }}\essai-out
+          if-no-files-found: ignore
+
+  pc-neuf:
+    name: PC neuf d'un estimateur (installation)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Essai
+        shell: pwsh
+        env:
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+          ESSAI_OUT: ${{ runner.temp }}\essai-out
+        run: pwsh -NoProfile -File scripts\ci\essai-pc-jo.ps1 -Scenario pc-neuf
+
+      - name: Journaux (si echec)
+        if: failure()
+        shell: pwsh
+        run: |
+          Get-ChildItem "$env:RUNNER_TEMP\essai-out" -Filter *.log -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Host "::group::$($_.Name)"
+            Get-Content $_.FullName -Tail 80
+            Write-Host '::endgroup::'
+          }
+
+      - name: Journaux (artefact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: essai-pc-neuf
+          path: ${{ runner.temp }}\essai-out
+          if-no-files-found: ignore
