@@ -41,7 +41,7 @@ jobs:
         run: |
           Get-ChildItem "$env:RUNNER_TEMP\essai-out" -Filter *.log -ErrorAction SilentlyContinue | ForEach-Object {
             Write-Host "::group::$($_.Name)"
-            Get-Content $_.FullName -Tail 80
+            Get-Content $_.FullName -Tail 25
             Write-Host '::endgroup::'
           }
 
@@ -75,7 +75,7 @@ jobs:
         run: |
           Get-ChildItem "$env:RUNNER_TEMP\essai-out" -Filter *.log -ErrorAction SilentlyContinue | ForEach-Object {
             Write-Host "::group::$($_.Name)"
-            Get-Content $_.FullName -Tail 80
+            Get-Content $_.FullName -Tail 25
             Write-Host '::endgroup::'
           }
 

@@ -133,7 +133,12 @@ if ($Scenario -eq 'pc-neuf') {
     $launcher = Join-Path $dev 'lena-Estimateur-2.cmd'
     Add-Check 'lanceur ecrit' (Test-Path $launcher) $launcher
     Add-Check 'dossier de config du compte estimateur + settings.json' (Test-Path (Join-Path $env:USERPROFILE '.claude-routeur' 'settings.json'))
-    Add-Check 'compte principal du PC jamais cree ni touche (.claude)' (-not (Test-Path $claudeDir))
+    # Sur un PC sans Claude Code, c'est l'installateur officiel qui cree %USERPROFILE%\.claude (pas notre script).
+    # Ce qu'on exige : notre script n'y a rien seme (ni reglages, ni regles, ni login).
+    $mainFiles = @(if (Test-Path $claudeDir) { Get-ChildItem $claudeDir -Recurse -File -Force | ForEach-Object { [IO.Path]::GetRelativePath($claudeDir, $_.FullName) } })
+    $seeded = @($mainFiles | Where-Object { $_ -match '^(settings(\.local)?\.json|CLAUDE\.md|\.credentials\.json)$' })
+    Add-Check 'compte principal du PC (.claude) : rien de seme par le script (ni reglages, ni regles, ni login)' ($seeded.Count -eq 0) $(
+        if ($seeded) { 'seme : ' + ($seeded -join ', ') } else { "$($mainFiles.Count) fichier(s), tous de l'installateur Claude Code : $(($mainFiles | Select-Object -First 5) -join ', ')" })
     # Outils installes par le script : nouvelle session = PATH relu du registre.
     $env:Path = @((Join-Path $env:LOCALAPPDATA 'mise\shims'), (Join-Path $env:USERPROFILE '.local\bin'),
         [Environment]::GetEnvironmentVariable('Path', 'User'), [Environment]::GetEnvironmentVariable('Path', 'Machine'), $env:Path) -join ';'
@@ -218,12 +223,36 @@ if ($IsWindows) {
 
 $bash = if ($IsWindows) { Join-Path $env:ProgramFiles 'Git\bin\bash.exe' } else { 'bash' }
 $code = Invoke-Logged 'sync-agents' { & $bash scripts/sync-agents.sh } $main
-Add-Check 'sync-agents.sh sous Git Bash sur le checkout Windows (parite OK, rien de modifie)' (($code -eq 0) -and ((Get-LogText 'sync-agents') -match 'parity OK') -and -not (Get-Status $main)) (Get-Status $main)
+$dirty = Get-Status $main
+if ($dirty) { git -C $main diff --stat *>&1 | Add-Content (Join-Path $out 'sync-agents.log'); git -C $main ls-files --eol AGENTS.md docs/LENA.md *>&1 | Add-Content (Join-Path $out 'sync-agents.log') }
+Add-Check 'sync-agents.sh sous Git Bash sur le checkout Windows (parite OK, aucun fichier touche)' (($code -eq 0) -and ((Get-LogText 'sync-agents') -match 'parity OK') -and -not $dirty) $dirty
+# Pour memoire (pas une verification) : le sed de Git Bash garde-t-il les retours chariot ?
+$probe = Join-Path $tmp 'sonde-cr.txt'
+[IO.File]::WriteAllBytes($probe, [byte[]](0x61, 0x0D, 0x0A))
+Push-Location $tmp; try { $n = (& $bash -c 'sed -n p sonde-cr.txt | wc -c' 2>&1 | Out-String).Trim() } finally { Pop-Location }
+"sed de ce bash : $n octet(s) en sortie pour « a CR LF » (3 = CR garde, 2 = CR retire)" | Tee-Object -FilePath (Join-Path $out 'sonde-sed.txt') | Write-Host
 
 # Tirage simple (la commande exacte des deux taches), sans rien en attente.
 $code = Invoke-Logged 'pull-simple' { git -C $nuit pull --rebase --autostash origin main }
 Add-Check 'tirage simple « git pull --rebase --autostash origin main » (code 0, propre)' (
     ($code -eq 0) -and (Test-Path (Join-Path $nuit 'scripts' 'install-twin.ps1')) -and -not (Get-Status $nuit))
+
+# RUNBOOK section 12 de bout en bout (sur ce 2e PC, pas chez Jo) : les sources Claude changent, on resynchronise
+# sous Git Bash, on commite ; le commit doit etre ce que la CI exige (bloc LENA identique, skills identiques, LF).
+Add-Content -Path (Join-Path $nuit 'docs' 'LENA.md') -Value "Ligne d'essai (parite)."
+Add-Content -Path (Join-Path $nuit '.claude' 'skills' 'plan-qpl' 'SKILL.md') -Value "Ligne d'essai (parite)."
+$code = Invoke-Logged 'sync-agents-derive' { & $bash scripts/sync-agents.sh } $nuit
+git -C $nuit config user.name 'Essai'; git -C $nuit config user.email 'essai@example.invalid'
+git -C $nuit add -A 2>$null; git -C $nuit commit -q -m 'essai : derive resynchronisee' 2>$null
+$agents = @(git -C $nuit show 'HEAD:AGENTS.md'); $lena = @(git -C $nuit show 'HEAD:docs/LENA.md')
+$i = [array]::IndexOf($agents, '<!-- LENA:START -->'); $j = [array]::IndexOf($agents, '<!-- LENA:END -->')
+$blockOk = ($i -ge 0) -and ($j -gt $i) -and ($lena.Count -gt 0) -and -not (Compare-Object @($agents[($i + 1)..($j - 1)]) $lena -SyncWindow 0)
+$skillsOk = (Get-Sha $nuit 'HEAD:.claude/skills') -eq (Get-Sha $nuit 'HEAD:.agents/skills')
+$eol = @(git -C $nuit ls-files --eol AGENTS.md docs/LENA.md .agents/skills/plan-qpl/SKILL.md)
+$lfOk = (@($eol | Where-Object { $_ -match '^i/lf\s' }).Count -eq 3)
+Add-Check 'RUNBOOK §12 : sources modifiees -> sync-agents.sh -> commit conforme a la CI (bloc LENA, skills, LF dans git)' (
+    ($code -eq 0) -and ((Get-LogText 'sync-agents-derive') -match 'rewritten') -and ((Get-LogText 'sync-agents-derive') -match 'parity OK') -and
+    $blockOk -and $skillsOk -and $lfOk -and ($lena -contains "Ligne d'essai (parite).") -and -not (Get-Status $nuit)) "bloc=$blockOk skills=$skillsOk lf=$lfOk"
 
 # Pire cas : un fichier non suivi traine sur un chemin que la PR ajoute. Attendu : le tirage refuse,
 # rien n'est perdu ni a moitie applique ; une fois le fichier deplace, le tirage passe.
