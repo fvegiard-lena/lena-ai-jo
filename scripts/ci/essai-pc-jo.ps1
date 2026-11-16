@@ -25,6 +25,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 $env:GIT_TERMINAL_PROMPT = '0'
+try { [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false) } catch { }   # noms de fichiers accentues dans la sortie de git
 
 $dev        = Join-Path $env:USERPROFILE 'dev'
 $main       = Join-Path $dev 'lena-ai-jo'
@@ -91,11 +92,13 @@ function Get-ProfilePrint {
 }
 # Checkout complet : tous les fichiers et dossiers, ceux que git ignore compris (CLAUDE.local.md, .venv, journaux),
 # et tout .git (config, hooks, refs, info/exclude, worktrees...) sauf ce que la simple lecture fait bouger (objets,
-# journaux des refs, index, *_HEAD) ; plus les drapeaux de l'index et le stash. « git status » ne voit pas tout ca.
+# journaux des refs, fichier d'index, *_HEAD) ; plus le contenu et les drapeaux de l'index, et le stash. « git status »
+# ne voit pas tout ca.
 function Get-RepoPrint([string]$Dir) {
     @(
         Get-TreeHash $Dir '^\.git[\\/](objects|logs)([\\/]|$)|^\.git[\\/](index|[A-Z_]*_HEAD)$'
         git -C $Dir ls-files -v
+        git -C $Dir ls-files -s
         'stash ' + (git -C $Dir stash list | Out-String)
     ) -join "`n"
 }

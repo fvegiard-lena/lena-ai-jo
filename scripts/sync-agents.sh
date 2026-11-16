@@ -29,10 +29,16 @@ git rev-parse --is-inside-work-tree > /dev/null || die "git cannot work in this 
 idx="$(git rev-parse --git-path "sync-agents-index.$$")"
 trap 'rm -rf "$tmp" "$idx" "$idx.lock"' EXIT
 
-# A private copy of the index: "staged add" does what "git add" would do, without touching the real one.
+# A private copy of the index: adding to it shows what "git add" would do, without touching the real one.
 real="$(git rev-parse --git-path index)"
 if [ -f "$real" ]; then cp "$real" "$idx"; fi
-staged() { GIT_INDEX_FILE="$idx" git -c core.safecrlf=false "$@"; }
+staged() { GIT_INDEX_FILE="$idx" git "$@"; }
+# "git add" into the private index, exactly as the real one would do it: its warnings are dropped, its refusal
+# (core.safecrlf=true, for instance) stops the script, since the commit could not be made either.
+staged_add() {
+    local err
+    err="$(staged add "$@" 2>&1)" || die "git add would refuse this here: $err"
+}
 bytes() { wc -c < "$1" | tr -d ' '; }
 
 [ -f docs/LENA.md ] || die "docs/LENA.md not found"
@@ -40,7 +46,7 @@ bytes() { wc -c < "$1" | tr -d ' '; }
 [ -d .claude/skills ] || die ".claude/skills not found"
 
 # docs/LENA.md as git would commit it.
-staged add -- docs/LENA.md
+staged_add -- docs/LENA.md
 staged cat-file blob :docs/LENA.md > "$tmp/lena"
 [ -s "$tmp/lena" ] || die "docs/LENA.md is empty"
 [ "$(tr -d '\0' < "$tmp/lena" | wc -c | tr -d ' ')" = "$(bytes "$tmp/lena")" ] ||
@@ -69,7 +75,7 @@ fi
 } > "$tmp/new"
 
 # Write AGENTS.md only when what git would commit for it differs from the file just built.
-staged add -- AGENTS.md
+staged_add -- AGENTS.md
 if staged cat-file blob :AGENTS.md | cmp -s - "$tmp/new"; then
     echo "AGENTS.md: already in sync"
 else
@@ -94,10 +100,10 @@ else
 fi
 
 # Same check as .github/workflows/ci.yml, on what git will commit.
-staged add -- AGENTS.md
+staged_add -- AGENTS.md
 staged cat-file blob :AGENTS.md | cmp -s - "$tmp/new" ||
     die "AGENTS.md, as git would commit it, still differs from docs/LENA.md. Check: git ls-files --eol AGENTS.md docs/LENA.md"
-staged add -A -- .claude/skills .agents/skills
+staged_add -A -- .claude/skills .agents/skills
 tab="$(printf '\t')"
 # Mode, content and path of every file git would commit under $1, paths relative to $1.
 as_committed() { staged -c core.quotepath=false ls-files -s -- "$1" | sed "s|$tab$1/|$tab|"; }
