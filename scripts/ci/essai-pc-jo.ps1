@@ -104,9 +104,10 @@ if ($env:GITHUB_EVENT_NAME -eq 'pull_request') {
 if (-not $base -or -not $head) { throw 'Commits introuvables : il faut un checkout complet (fetch-depth: 0) avec origin/main.' }
 Write-Host "main avant la PR : $base`ntete de la PR    : $head"
 
-# Origin local : main = avant la PR ; les branches des jumeaux = tete de la PR.
+# Origin local : main = avant la PR ; les branches des jumeaux = tete de la PR (francis-dev aussi, ici : c'est
+# seulement un nom de branche pour l'essai d'un 2e compte, pas la vraie branche de Francis).
 git init -q --bare -b main $origin
-git -C $Source push -q $origin "${base}:refs/heads/main" "${head}:refs/heads/Estimateur-2" "${head}:refs/heads/estimateur-junior"
+git -C $Source push -q $origin "${base}:refs/heads/main" "${head}:refs/heads/Estimateur-2" "${head}:refs/heads/estimateur-junior" "${head}:refs/heads/francis-dev"
 if ($LASTEXITCODE) { throw 'push vers origin local impossible' }
 
 # Fusion de la PR dans main sur origin, par merge commit (« Create a merge commit »).
@@ -133,20 +134,29 @@ if ($Scenario -eq 'pc-neuf') {
     $launcher = Join-Path $dev 'lena-Estimateur-2.cmd'
     Add-Check 'lanceur ecrit' (Test-Path $launcher) $launcher
     Add-Check 'dossier de config du compte estimateur + settings.json' (Test-Path (Join-Path $env:USERPROFILE '.claude-routeur' 'settings.json'))
-    # Sur un PC sans Claude Code, c'est l'installateur officiel qui cree %USERPROFILE%\.claude (pas notre script).
-    # Ce qu'on exige : notre script n'y a rien seme (ni reglages, ni regles, ni login).
-    $mainFiles = @(if (Test-Path $claudeDir) { Get-ChildItem $claudeDir -Recurse -File -Force | ForEach-Object { [IO.Path]::GetRelativePath($claudeDir, $_.FullName) } })
-    $seeded = @($mainFiles | Where-Object { $_ -match '^(settings(\.local)?\.json|CLAUDE\.md|\.credentials\.json)$' })
-    Add-Check 'compte principal du PC (.claude) : rien de seme par le script (ni reglages, ni regles, ni login)' ($seeded.Count -eq 0) $(
-        if ($seeded) { 'seme : ' + ($seeded -join ', ') } else { "$($mainFiles.Count) fichier(s), tous de l'installateur Claude Code : $(($mainFiles | Select-Object -First 5) -join ', ')" })
     # Outils installes par le script : nouvelle session = PATH relu du registre.
-    $env:Path = @((Join-Path $env:LOCALAPPDATA 'mise\shims'), (Join-Path $env:USERPROFILE '.local\bin'),
-        [Environment]::GetEnvironmentVariable('Path', 'User'), [Environment]::GetEnvironmentVariable('Path', 'Machine'), $env:Path) -join ';'
+    if ($IsWindows) {
+        $env:Path = @((Join-Path $env:LOCALAPPDATA 'mise\shims'), (Join-Path $env:USERPROFILE '.local\bin'),
+            [Environment]::GetEnvironmentVariable('Path', 'User'), [Environment]::GetEnvironmentVariable('Path', 'Machine'), $env:Path) -join ';'
+    }
     foreach ($t in 'mise', 'uv', 'node', 'claude') {
         $cmd = Get-Command $t -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
         Add-Check "outil $t present apres le script" ([bool]$cmd) $(if ($cmd) { $cmd.Source } else { 'pas installe sur ce runner (reseau / winget) : voir install-twin.log' }) $false
     }
-    if (Get-Command claude -CommandType Application -ErrorAction SilentlyContinue) {
+    # Sur un PC sans Claude Code, l'installateur officiel (lance par le script) cree lui-meme %USERPROFILE%\.claude.
+    # Pour memoire, ce qu'il y laisse (noms de fichiers et cles de settings.json seulement) :
+    $mainFiles = @(if (Test-Path $claudeDir) { Get-ChildItem $claudeDir -Recurse -File -Force | ForEach-Object { [IO.Path]::GetRelativePath($claudeDir, $_.FullName) } })
+    $keys = try { ((Get-Content -Raw (Join-Path $claudeDir 'settings.json') | ConvertFrom-Json).PSObject.Properties.Name) -join ', ' } catch { '(pas de settings.json)' }
+    "Apres l'installateur officiel de Claude Code, %USERPROFILE%\.claude contient $($mainFiles.Count) fichier(s) : $(($mainFiles | Select-Object -First 8) -join ', ') ; cles de settings.json : $keys" |
+        Tee-Object -FilePath (Join-Path $out 'compte-principal.txt') | Write-Host
+    Add-Check 'aucun login seme dans le compte principal (.credentials.json absent)' (-not (Test-Path (Join-Path $claudeDir '.credentials.json')))
+    # La preuve que NOTRE script n'ecrit rien dans le compte principal : on le relance, Claude Code deja installe,
+    # pour un autre compte (nouveau dossier de config, donc semis de settings.json rejoue) ; .claude ne doit pas bouger.
+    $profBefore = Get-TreeHash $claudeDir
+    $code = Invoke-Logged 'install-twin-2e-compte' { pwsh -NoProfile -File (Join-Path $main 'scripts' 'install-twin.ps1') -Branch francis-dev -Remote $origin -NoInstall -SkipTests }
+    Add-Check 'install-twin.ps1 pour un 2e compte (code 0, dossier de config seme a part)' (($code -eq 0) -and (Test-Path (Join-Path $env:USERPROFILE '.claude-francis' 'settings.json')))
+    Add-Check 'compte principal du PC (%USERPROFILE%\.claude) : pas un octet ecrit par install-twin.ps1' ((Get-TreeHash $claudeDir) -eq $profBefore)
+    if ($IsWindows -and (Get-Command claude -CommandType Application -ErrorAction SilentlyContinue)) {
         $code = Invoke-Logged 'lanceur-version' { & $launcher --version }
         Add-Check 'lanceur : lance le vrai Claude Code (--version)' (($code -eq 0) -and ((Get-LogText 'lanceur-version') -match '\d+\.\d+\.\d+')) ((Get-LogText 'lanceur-version') -replace '\s+', ' ') $false
     }
