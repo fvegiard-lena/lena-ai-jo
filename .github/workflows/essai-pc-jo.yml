@@ -3,7 +3,8 @@ name: Essai PC de Jo
 # Avant un merge dans main : rejoue sur des runners Windows jetables ce que le PC de Jo (et le PC d'un
 # estimateur) vivra, avec les vrais scripts du repo (scripts/ci/essai-pc-jo.ps1). Rien ne sort du runner :
 # "origin" y est un depot nu local. Pas un check obligatoire (la protection de main n'exige que "ci").
-# Ne tourne pas sur les push de main (snapshots de Jo) : seulement sur les PR vers main, ou a la main.
+# Ne tourne pas sur les push de main (snapshots de Jo) : seulement sur les PR vers main, ou a la main
+# (choisir alors la branche de la PR : lance depuis main, le script s'arrete, il n'y a rien a essayer).
 on:
   pull_request:
     branches: [main]
