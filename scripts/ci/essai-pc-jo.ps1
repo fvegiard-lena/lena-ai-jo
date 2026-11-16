@@ -4,9 +4,11 @@
 #   pc-jo   : le PC part de main tel qu'il est avant la PR (checkout CRLF, taches planifiees reelles, snapshot
 #             pousse, Claude Code et shims mise en place) ; la PR est fusionnee sur un origin local (merge commit,
 #             comme le bouton GitHub) ; un PC la recoit par auto-commit, un autre par la CI de nuit ; les jumeaux
-#             des estimateurs sont installes a cote. Verifie que rien de ce qui roule deja chez Jo ne change
-#             (scripts, taches, checkout complet, %USERPROFILE%\.claude et .claude.json, PATH utilisateur) et
-#             rejoue les deux cas ou le tirage bloque (RUNBOOK section 11), avec leur reparation.
+#             des estimateurs sont installes a cote. Verifie que rien de ce qui roule deja chez Jo ne change :
+#             scripts de production, taches planifiees, checkout complet, %USERPROFILE%\.claude et .claude.json,
+#             config git globale ; au profil, seuls s'ajoutent le dossier de config du compte estimateur et, au
+#             PATH utilisateur, les shims mise (une fois). Rejoue avec la vraie tache de nuit les trois cas ou le
+#             tirage bloque (RUNBOOK section 11), et leur reparation.
 #   pc-neuf : PC d'un estimateur sans mise ni Claude Code ; install-twin.ps1 installe ce qui manque.
 # Rien ne sort du runner : « origin » est un depot nu local ; ni GitHub ni le PC de Jo ne sont contactes.
 # Garde-fous : sous Windows, runner GitHub heberge seulement ; refus si %USERPROFILE%\dev\lena-ai-jo,
@@ -58,6 +60,12 @@ function Invoke-Logged([string]$LogName, [scriptblock]$Block, [string]$WorkDir =
     Write-Host "  ($LogName : code $code)"
     $code
 }
+# La vraie tache de nuit du checkout $Repo (son script a lui : celui d'avant la PR tant qu'il n'a rien recu).
+function Invoke-Nightly([string]$LogName, [string]$Repo) {
+    $code = Invoke-Logged $LogName { pwsh -NoProfile -File (Join-Path $Repo 'scripts' 'lena-nightly.ps1') }
+    Get-Content -LiteralPath (Join-Path $Repo 'scripts' 'lena-nightly.log') -ErrorAction SilentlyContinue | Set-Content (Join-Path $out "$LogName.script.log")
+    $code
+}
 
 function Get-Sha([string]$Dir, [string]$Rev) { (git -C $Dir rev-parse -q --verify $Rev 2>$null | Out-String).Trim() }
 function Get-Status([string]$Dir) { (git -C $Dir status --porcelain --untracked-files=all | Out-String).Trim() }
@@ -66,30 +74,37 @@ function Get-LogText([string]$LogName) { Get-Content -Raw (Join-Path $out "$LogN
 function Test-SameLines($A, $B) { [Linq.Enumerable]::SequenceEqual([string[]]@($A), [string[]]@($B)) }
 function Get-FirstDiff($A, $B) { (Compare-Object @($A) @($B) -CaseSensitive | Select-Object -First 3 | ForEach-Object { "$($_.SideIndicator) $($_.InputObject)" }) -join ' // ' }
 
-# Empreinte d'un dossier (contenu + chemins) : pour prouver qu'il n'a pas bouge.
+# Empreinte d'un dossier : contenu de chaque fichier, chemins, et dossiers (meme vides). Pour prouver qu'il n'a pas bouge.
 function Get-TreeHash([string]$Dir, [string]$Skip = $null) {
-    if (-not (Test-Path $Dir)) { return '(absent)' }
-    (Get-ChildItem $Dir -Recurse -File -Force | ForEach-Object { [IO.Path]::GetRelativePath($Dir, $_.FullName) } |
-        Where-Object { -not $Skip -or $_ -notmatch $Skip } | Sort-Object | ForEach-Object {
-            '{0} {1}' -f (Get-FileHash -LiteralPath (Join-Path $Dir $_)).Hash, $_ }) -join "`n"
+    if (-not (Test-Path -LiteralPath $Dir)) { return '(absent)' }
+    $lines = [string[]]@(Get-ChildItem -LiteralPath $Dir -Recurse -Force | ForEach-Object {
+            $rel = [IO.Path]::GetRelativePath($Dir, $_.FullName)
+            if ($Skip -and $rel -match $Skip) { return }
+            if ($_.PSIsContainer) { "dossier $rel" } else { '{0} {1}' -f (Get-FileHash -LiteralPath $_.FullName).Hash, $rel }
+        })
+    [Array]::Sort($lines, [StringComparer]::Ordinal)
+    $lines -join "`n"
 }
 # Compte principal du PC : tout %USERPROFILE%\.claude, plus %USERPROFILE%\.claude.json.
 function Get-ProfilePrint {
     (Get-TreeHash $claudeDir) + "`n.claude.json " + $(if (Test-Path $claudeJson) { (Get-FileHash $claudeJson).Hash } else { '(absent)' })
 }
-# Checkout complet : tous les fichiers du dossier, ceux que git ignore compris (CLAUDE.local.md, .venv, journaux),
-# plus la config du depot, ses hooks, ses refs et son stash. « git status » seul ne voit pas tout ca.
+# Checkout complet : tous les fichiers et dossiers, ceux que git ignore compris (CLAUDE.local.md, .venv, journaux),
+# et tout .git (config, hooks, refs, info/exclude, worktrees...) sauf ce que la simple lecture fait bouger (objets,
+# journaux des refs, index, *_HEAD) ; plus les drapeaux de l'index et le stash. « git status » ne voit pas tout ca.
 function Get-RepoPrint([string]$Dir) {
     @(
-        Get-TreeHash $Dir '^\.git[\\/]'
-        'config ' + (Get-FileHash (Join-Path $Dir '.git' 'config')).Hash
-        'hooks ' + (Get-TreeHash (Join-Path $Dir '.git' 'hooks'))
-        git -C $Dir for-each-ref
+        Get-TreeHash $Dir '^\.git[\\/](objects|logs)([\\/]|$)|^\.git[\\/](index|[A-Z_]*_HEAD)$'
+        git -C $Dir ls-files -v
         'stash ' + (git -C $Dir stash list | Out-String)
     ) -join "`n"
 }
+# Ce qu'il y a a la racine du profil (noms seulement, sans les fichiers du registre de Windows).
+function Get-ProfileRoot { @(Get-ChildItem -LiteralPath $env:USERPROFILE -Force | ForEach-Object Name | Where-Object { $_ -notmatch '^ntuser\.' }) }
+function Get-GitGlobal { (git config --global --list 2>$null | Out-String) }
 
-# Definition complete des taches planifiees (actions, declencheurs, reglages, compte, description), a plat.
+# Definition complete des taches planifiees (actions, declencheurs, reglages, compte, description), a plat, et la
+# liste des taches qui tournent sous ce compte (une tache en plus se voit).
 # Hors comparaison : ce qui change tout seul (date d'enregistrement, etat Ready / Running) et le jour du declencheur.
 $taskNames = 'lena-claude-backup', 'lena-auto-commit', 'lena-nightly-ci', 'Desktop Commander Remote'
 function Format-Cim($Obj, [string]$Prefix, [bool]$Top = $false) {
@@ -111,9 +126,12 @@ function Get-TaskDefs {
         if (-not $t) { "$n | absente"; continue }
         Format-Cim $t "$n | " $true
     }
+    $mine = @(Get-ScheduledTask | Where-Object { "$($_.Principal.UserId)" -match "(^|\\)$([regex]::Escape($env:USERNAME))$" } | ForEach-Object { "$($_.TaskPath)$($_.TaskName)" } | Sort-Object)
+    "taches de ce compte : $($mine -join ' ; ')"
 }
-# Le runner n'est pas le PC de Jo : entre deux etapes, les taches sont desactivees pour qu'aucune ne parte
-# toute seule (02:00, 03:00, 12:00) pendant que l'essai lance les memes scripts a la main.
+# Le runner n'est pas le PC de Jo : quand l'essai lance lui-meme les scripts des taches, elles sont desactivees pour
+# qu'aucune ne parte toute seule (02:00, 03:00, 12:00) au meme moment. Elles sont actives, comme chez Jo, quand
+# install-tasks.ps1 passe et pendant toute l'installation des jumeaux (une tache desactivee par la PR se voit).
 function Set-TasksEnabled([bool]$On) {
     foreach ($n in $taskNames) {
         if ($On) { Enable-ScheduledTask -TaskName $n -ErrorAction SilentlyContinue | Out-Null }
@@ -155,9 +173,10 @@ if ($LASTEXITCODE -eq 0) {
 # de la PR ; l'autre est prise la ou elle est vraiment sur GitHub (origin/<branche>), sinon a la tete de la PR.
 # francis-dev n'est ici qu'un nom de branche pour l'essai d'un 2e compte, pas la vraie branche de Francis.
 $prBranch = if ($env:GITHUB_HEAD_REF) { $env:GITHUB_HEAD_REF } elseif ($env:GITHUB_REF_NAME) { $env:GITHUB_REF_NAME } else { (git -C $Source rev-parse --abbrev-ref HEAD | Out-String).Trim() }
-$tips = @{}
+$tips = @{}; $absent = @{}
 foreach ($b in 'Estimateur-2', 'estimateur-junior') {
     $real = Get-Sha $Source "origin/$b"
+    $absent[$b] = ($b -ne $prBranch -and -not $real)
     $tips[$b] = if ($b -ne $prBranch -and $real) { $real } else { $head }
 }
 git init -q --bare -b main $origin
@@ -165,19 +184,45 @@ git -C $Source push -q $origin "${base}:refs/heads/main" "${head}:refs/heads/pr"
 if ($LASTEXITCODE) { throw 'push vers origin local impossible' }
 function Add-TwinTipChecks([string[]]$Branches) {
     foreach ($b in $Branches) {
-        Add-Check "branche $b sur GitHub = tete de la PR (copie conforme)" ($tips[$b] -eq $head) $(if ($tips[$b] -ne $head) { "jumeau installe depuis $($tips[$b].Substring(0, 7)), la PR est a $($head.Substring(0, 7)) : aligner la branche" }) $false
+        $detail = if ($absent[$b]) { 'branche absente de GitHub : jumeau essaye a la tete de la PR' }
+        elseif ($tips[$b] -ne $head) { "jumeau installe depuis $($tips[$b].Substring(0, 7)), la PR est a $($head.Substring(0, 7)) : aligner la branche" } else { '' }
+        Add-Check "branche $b sur GitHub = tete de la PR (copie conforme)" (-not $detail) $detail $false
     }
 }
 
-# Fusion de la PR dans main sur origin, par merge commit (« Create a merge commit »).
+$inSnapshotZone = { $_ -match '^config/' -or $_ -eq 'docs/INVENTAIRE.md' }
+# Fusion de la PR dans main, par merge commit (« Create a merge commit »).
 function Merge-PrIntoMain {
+    $id = @('-c', 'user.name=GitHub (essai)', '-c', 'user.email=essai@example.invalid')
+    # 1. Comme GitHub : la PR fusionne-t-elle dans main tel qu'il est avant elle ?
+    $gh = Join-Path $tmp 'merge-github'
+    git clone -q $origin $gh
+    git -C $gh checkout -q --detach $base
+    $code = Invoke-Logged 'merge-pr' { git -C $gh @id merge --no-ff -m "Merge pull request (essai) : $head" origin/pr }
+    Add-Check 'PR fusionnee dans main par merge commit, sans conflit' ($code -eq 0)
+    if ($code -ne 0) { Write-Bilan }
+    # 2. Le meme merge sur l'origin de l'essai, ou main porte en plus le snapshot que le faux PC vient de pousser.
+    #    Ce snapshot ne ressemble pas a celui de Jo (autre machine) : s'il se heurte a un fichier de config/ que la
+    #    PR change, ce n'est pas un conflit de la PR ; la version de la PR est prise.
     $work = Join-Path $tmp 'merge-work'
     git clone -q --branch main $origin $work
-    git -C $work config user.name 'GitHub (essai)'; git -C $work config user.email 'essai@example.invalid'
-    $code = Invoke-Logged 'merge-pr' { git -C $work merge --no-ff -m "Merge pull request (essai) : $head" origin/pr }
+    $code = Invoke-Logged 'merge-pr-essai' { git -C $work @id merge --no-ff -m "Merge pull request (essai) : $head" origin/pr }
+    $note = ''
+    if ($code -ne 0) {
+        $unmerged = @(git -C $work -c core.quotepath=false diff --name-only --diff-filter=U)
+        if ($unmerged.Count -gt 0 -and @($unmerged | Where-Object { -not (& $inSnapshotZone) }).Count -eq 0) {
+            foreach ($u in $unmerged) {
+                git -C $work cat-file -e "origin/pr:$u" 2>$null
+                if ($LASTEXITCODE -eq 0) { git -C $work checkout -q origin/pr -- $u } else { git -C $work rm -q -f -- $u }
+            }
+            git -C $work @id commit -q --no-edit
+            $code = $LASTEXITCODE
+            $note = "snapshot du faux PC ecarte pour : $($unmerged -join ', ')"
+        }
+    }
     if ($code -eq 0) { git -C $work push -q origin main; $code = $LASTEXITCODE }
     $parents = @((git -C $origin rev-list --parents -n 1 main | Out-String).Trim() -split ' ').Count - 1
-    Add-Check 'PR fusionnee dans main par merge commit (2 parents), sans conflit' (($code -eq 0) -and ($parents -eq 2)) (Get-Sha $origin 'main')
+    Add-Check 'merge rejoue sur l''origin de l''essai (merge commit a 2 parents)' (($code -eq 0) -and ($parents -eq 2)) "$(Get-Sha $origin 'main') $note".Trim()
     if (($code -ne 0) -or ($parents -ne 2)) { Write-Bilan }
 }
 
@@ -281,11 +326,12 @@ $code = Invoke-Logged 'auto-commit-avant' { pwsh -NoProfile -File (Join-Path $ma
 Add-Check 'avant : auto-commit (snapshot + push) fonctionne' ($code -eq 0)
 Add-Check 'avant : PC a jour avec origin' ((Get-Sha $main 'HEAD') -eq (Get-Sha $origin 'main'))
 
-# Trois autres PC dans le meme etat « avant » : la CI de nuit comme premier receveur, et les deux cas qui bloquent.
+# Quatre autres PC dans le meme etat « avant » : la CI de nuit comme premier receveur, et les trois cas qui bloquent.
 $nuit    = Join-Path $tmp 'pc-nuit' 'lena-ai-jo'
 $pire    = Join-Path $tmp 'pc-cas-1' 'lena-ai-jo'
 $conflit = Join-Path $tmp 'pc-cas-2' 'lena-ai-jo'
-foreach ($d in $nuit, $pire, $conflit) { git clone -q -c core.autocrlf=true --branch main $origin $d }
+$avance  = Join-Path $tmp 'pc-cas-3' 'lena-ai-jo'
+foreach ($d in $nuit, $pire, $conflit, $avance) { git clone -q -c core.autocrlf=true --branch main $origin $d }
 
 # --- 2. La PR entre dans main -----------------------------------------------------------------------
 Write-Host "`n== 2. Merge de la PR dans main (origin) =="
@@ -293,38 +339,50 @@ $preMerge = Get-Sha $origin 'main'   # main avant la PR + le snapshot que le PC 
 Merge-PrIntoMain
 $merged = Get-Sha $origin 'main'
 # Ce que le merge apporte, lu dans le merge lui-meme (vaut pour n'importe quelle PR, pas seulement celle-ci).
-# Pour les deux cas de blocage : hors fichiers de config git et hors zone du snapshot (config/, INVENTAIRE.md).
-$usable = { $_ -and $_ -notmatch '^"' -and $_ -notmatch '(^|/)\.git[^/]*$' -and $_ -notmatch '^config/' -and $_ -ne 'docs/INVENTAIRE.md' }
+# Fichiers des cas de blocage : hors fichiers de config git, hors zone du snapshot ; de preference hors
+# plan-tools/ et code-rag/ (un brouillon la-dedans ferait aussi rougir les tests de la tache de nuit).
+$usable = { $_ -and $_ -notmatch '^"' -and $_ -notmatch '(^|/)\.git[^/]*$' -and -not (& $inSnapshotZone) }
 $prFiles = @(git -C $origin -c core.quotepath=false diff --name-only $preMerge $merged)
 $prAdded = @(git -C $origin -c core.quotepath=false diff --diff-filter=A --name-only $preMerge $merged | Where-Object $usable)
 $prModified = @(git -C $origin -c core.quotepath=false diff --diff-filter=M --numstat $preMerge $merged | ForEach-Object {
         $f = $_ -split "`t", 3
         if ($f.Count -eq 3 -and $f[0] -match '^\d+$' -and ([int]$f[0] + [int]$f[1]) -gt 0) { $f[2] } } | Where-Object $usable)
-Write-Host "le merge change $($prFiles.Count) fichier(s) : $($prAdded.Count) ajoute(s), $($prModified.Count) fichier(s) texte modifie(s)"
+$prModified = @($prModified | Where-Object { $_ -notmatch '^(plan-tools|code-rag)/' }) + @($prModified | Where-Object { $_ -match '^(plan-tools|code-rag)/' })
+Write-Host "le merge change $($prFiles.Count) fichier(s) : $($prAdded.Count) ajoute(s) et $($prModified.Count) fichier(s) texte modifie(s) utilisables pour les cas de blocage"
 # Ce PC a-t-il recu le merge, et est-il au meme point qu'origin (le merge, plus le snapshot pousse par le PC de Jo) ?
 function Test-AtOrigin([string]$Dir) {
     git -C $Dir merge-base --is-ancestor $merged HEAD
     ($LASTEXITCODE -eq 0) -and ((Get-Sha $Dir 'HEAD') -eq (Get-Sha $origin 'main'))
+}
+# Le chemin $Rel est-il libre dans le checkout $Root (rien a cet endroit, et un vrai dossier au-dessus) ?
+function Test-FreePath([string]$Root, [string]$Rel) {
+    $p = Join-Path $Root $Rel
+    if (Test-Path -LiteralPath $p) { return $false }
+    $d = [IO.Path]::GetDirectoryName($p)
+    while ($d -and -not (Test-Path -LiteralPath $d)) { $d = [IO.Path]::GetDirectoryName($d) }
+    [bool]($d -and (Test-Path -LiteralPath $d -PathType Container))
 }
 
 # --- 3. Le PC de Jo recoit la PR par ses taches planifiees ------------------------------------------
 Write-Host "`n== 3. Le PC de Jo recoit la PR =="
 # Un changement de config en attente (comme un jour normal) : auto-commit commite, tire main, pousse.
 Add-Content -Path (Join-Path $claudeDir 'CLAUDE.md') -Value "`n<!-- essai : changement local en attente -->"
+# A partir d'ici, du code de la PR tourne sous le compte de Jo (tests, sync-agents, install-tasks, jumeaux) :
+# le compte principal ne doit plus bouger d'un octet jusqu'a la fin de l'essai.
+$profBefore = Get-ProfilePrint
 $code = Invoke-Logged 'auto-commit-apres' { pwsh -NoProfile -File (Join-Path $main 'scripts' 'auto-commit.ps1') }
 Get-Content (Join-Path $main 'scripts' 'auto-commit.log') -ErrorAction SilentlyContinue | Set-Content (Join-Path $out 'auto-commit.script.log')
 Add-Check 'auto-commit apres le merge (code 0)' ($code -eq 0)
 git -C $main merge-base --is-ancestor $merged HEAD
 Add-Check 'main local contient le merge, et origin = local (snapshot pousse)' (($LASTEXITCODE -eq 0) -and ($prFiles.Count -gt 0) -and ((Get-Sha $main 'HEAD') -eq (Get-Sha $origin 'main'))) "$($prFiles.Count) fichier(s) apportes par la PR"
 $snapFiles = @(git -C $main diff --name-only "$merged" HEAD)
-$outside = @($snapFiles | Where-Object { $_ -notmatch '^config/' -and $_ -ne 'docs/INVENTAIRE.md' })
+$outside = @($snapFiles | Where-Object { -not (& $inSnapshotZone) })
 Add-Check 'snapshot de Jo : seulement config/ et docs/INVENTAIRE.md (tout le reste = main apres le merge)' ($outside.Count -eq 0) "$($snapFiles.Count) fichier(s)$(if ($outside) { ' ; hors zone : ' + ($outside -join ', ') })"
 Add-Check 'checkout principal propre (rien de modifie, rien en trop)' (-not (Get-Status $main)) (Get-Status $main)
 git -C $main diff --quiet $base HEAD -- @prod
 Add-Check 'scripts de production de Jo identiques a avant (auto-commit, nightly, backup, snapshot)' ($LASTEXITCODE -eq 0)
 
-$code = Invoke-Logged 'nightly' { pwsh -NoProfile -File (Join-Path $main 'scripts' 'lena-nightly.ps1') }
-Get-Content (Join-Path $main 'scripts' 'lena-nightly.log') -ErrorAction SilentlyContinue | Set-Content (Join-Path $out 'nightly.script.log')
+$code = Invoke-Nightly 'nightly' $main
 Add-Check 'CI de nuit sur le PC deja a jour : tests verts (code 0)' ($code -eq 0)
 
 if ($IsWindows) {
@@ -334,10 +392,9 @@ if ($IsWindows) {
     $code = Invoke-Logged 'install-tasks-apres' { pwsh -NoProfile -File (Join-Path $main 'scripts' 'install-tasks.ps1') }
     $tasksAfter = @(Get-TaskDefs)
     Set-TasksEnabled $false
-    $tasksIdle = @(Get-TaskDefs)
     $tasksAfter | Set-Content (Join-Path $out 'taches-apres.txt')
     Add-Check 'install-tasks.ps1 de la PR, depuis le checkout principal (code 0)' ($code -eq 0)
-    Add-Check 'taches planifiees identiques a avant (definition complete : actions, declencheurs, reglages, compte)' (Test-SameLines $tasksBefore $tasksAfter) (Get-FirstDiff $tasksBefore $tasksAfter)
+    Add-Check 'taches planifiees identiques a avant (definition complete : actions, declencheurs, reglages, compte ; aucune tache en plus)' (Test-SameLines $tasksBefore $tasksAfter) (Get-FirstDiff $tasksBefore $tasksAfter)
 }
 
 $bash = if ($IsWindows) { Join-Path $env:ProgramFiles 'Git\bin\bash.exe' } else { 'bash' }
@@ -352,15 +409,21 @@ Push-Location $tmp; try { $n = (& $bash -c 'sed -n p sonde-cr.txt | wc -c' 2>&1 
 "sed de ce bash : $n octet(s) en sortie pour « a CR LF » (3 = CR garde, 2 = CR retire)" | Tee-Object -FilePath (Join-Path $out 'sonde-sed.txt') | Write-Host
 
 # Un 2e PC, rien en attente : c'est la CI de nuit qui recoit le merge en premier (elle tire chaque nuit).
-$code = Invoke-Logged 'nightly-premier' { pwsh -NoProfile -File (Join-Path $nuit 'scripts' 'lena-nightly.ps1') }
-Get-Content (Join-Path $nuit 'scripts' 'lena-nightly.log') -ErrorAction SilentlyContinue | Set-Content (Join-Path $out 'nightly-premier.script.log')
+$code = Invoke-Nightly 'nightly-premier' $nuit
 Add-Check 'CI de nuit premiere a recevoir le merge (2e PC, rien en attente) : tirage + tests verts, checkout propre' (
     ($code -eq 0) -and (Test-AtOrigin $nuit) -and -not (Get-Status $nuit)) (Get-Status $nuit)
 
-# RUNBOOK section 12 de bout en bout (sur ce 2e PC, pas chez Jo) : les sources Claude changent, on resynchronise
-# sous Git Bash, on commite ; puis l'etape « Parite » de ci.yml, telle quelle, sur un clone LF de ce commit.
-Add-Content -Path (Join-Path $nuit 'docs' 'LENA.md') -Value "Ligne d'essai (parite)."
-Add-Content -Path (Join-Path $nuit '.claude' 'skills' 'plan-qpl' 'SKILL.md') -Value "Ligne d'essai (parite)."
+# RUNBOOK section 12 de bout en bout (sur ce 2e PC, pas chez Jo) : les sources Claude changent (docs/LENA.md et le
+# premier skill present), on resynchronise sous Git Bash, on commite ; puis l'etape « Parite » de ci.yml, telle
+# quelle, sur un clone LF de ce commit.
+Add-Content -LiteralPath (Join-Path $nuit 'docs' 'LENA.md') -Value "Ligne d'essai (parite)."
+$eolPaths = @('AGENTS.md', 'docs/LENA.md')
+$skill = Get-ChildItem -LiteralPath (Join-Path $nuit '.claude' 'skills') -Directory -ErrorAction SilentlyContinue |
+    Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'SKILL.md') } | Sort-Object Name | Select-Object -First 1
+if ($skill) {
+    Add-Content -LiteralPath (Join-Path $skill.FullName 'SKILL.md') -Value "Ligne d'essai (parite)."
+    $eolPaths += ".agents/skills/$($skill.Name)/SKILL.md"
+}
 $code = Invoke-Logged 'sync-agents-derive' { & $bash scripts/sync-agents.sh } $nuit
 git -C $nuit config user.name 'Essai'; git -C $nuit config user.email 'essai@example.invalid'
 git -C $nuit add -A 2>$null; git -C $nuit commit -q -m 'essai : derive resynchronisee' 2>$null
@@ -369,58 +432,80 @@ git clone -q -c core.autocrlf=false $nuit $ciClone
 $parite = Join-Path $tmp 'parite-ci.sh'
 [IO.File]::WriteAllText($parite, "set -euo pipefail`nsed -n '/^<!-- LENA:START -->`$/,/^<!-- LENA:END -->`$/p' AGENTS.md | sed '1d;`$d' | diff -u docs/LENA.md -`ndiff -r .claude/skills .agents/skills`ngrep -qx `"Ligne d'essai (parite).`" docs/LENA.md`n")
 $ciCode = Invoke-Logged 'parite-ci' { & $bash ($parite -replace '\\', '/') } $ciClone
-$eol = @(git -C $nuit ls-files --eol AGENTS.md docs/LENA.md .agents/skills/plan-qpl/SKILL.md)
-$lfOk = (@($eol | Where-Object { $_ -match '^i/lf\s' }).Count -eq 3)
+$eol = @(git -C $nuit ls-files --eol -- @eolPaths)
+$lfOk = (@($eol | Where-Object { $_ -match '^i/lf\s' }).Count -eq $eolPaths.Count)
 Add-Check 'RUNBOOK §12 : sources modifiees -> sync-agents.sh -> commit conforme a la CI (etape Parite de ci.yml, LF dans git)' (
     ($code -eq 0) -and ((Get-LogText 'sync-agents-derive') -match 'rewritten') -and ((Get-LogText 'sync-agents-derive') -match 'parity OK') -and
-    ($ciCode -eq 0) -and $lfOk -and -not (Get-Status $nuit)) "sync=$code parite-ci=$ciCode lf=$lfOk"
+    ($ciCode -eq 0) -and $lfOk -and -not (Get-Status $nuit)) "sync=$code parite-ci=$ciCode lf=$lfOk$(if (-not $skill) { ' (aucun skill dans ce checkout)' })"
 
-# Les deux cas ou le tirage des taches bloque (RUNBOOK section 11), sur deux autres PC restes « avant ».
-# Cas 1 : un fichier non suivi traine sur un chemin que le merge ajoute. Attendu : le tirage refuse net,
-# rien n'est perdu ni a moitie applique ; une fois le fichier deplace, le tirage passe.
-$strayRel = $prAdded | Where-Object { git -C $pire check-ignore -q -- $_; $LASTEXITCODE -ne 0 } | Select-Object -First 1
+# Les trois cas ou le tirage des taches bloque (RUNBOOK section 11), sur trois autres PC restes « avant »,
+# rejoues avec la vraie tache de nuit de ces PC (celle d'avant la PR).
+# Cas 1 : un fichier non suivi traine sur un chemin que le merge ajoute. Attendu : la tache echoue net (« ECHEC
+# pull --rebase »), rien n'est perdu ni a moitie applique ; une fois le fichier deplace, le tirage passe.
+$strayRel = $prAdded | Where-Object { git -C $pire check-ignore -q -- $_; ($LASTEXITCODE -ne 0) -and (Test-FreePath $pire $_) } | Select-Object -First 1
 if ($strayRel) {
     $stray = Join-Path $pire $strayRel
-    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $stray) | Out-Null
-    'brouillon local' | Set-Content $stray
+    [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($stray)) | Out-Null
+    [IO.File]::WriteAllText($stray, "brouillon local`n")
     $pireHead = Get-Sha $pire 'HEAD'
-    $code = Invoke-Logged 'pull-cas-1' { git -C $pire pull --rebase --autostash origin main }
+    $code = Invoke-Nightly 'nightly-cas-1' $pire
     $rebasing = (Test-Path (Join-Path $pire '.git' 'rebase-merge')) -or (Test-Path (Join-Path $pire '.git' 'rebase-apply'))
-    Add-Check "cas 1 (fichier non suivi sur un chemin que la PR ajoute : $strayRel) : tirage refuse net, rien de perdu" (
-        ($code -ne 0) -and ((Get-Sha $pire 'HEAD') -eq $pireHead) -and ((Get-Content -Raw $stray) -match 'brouillon local') -and -not $rebasing) ((Get-LogText 'pull-cas-1') -split '\r?\n' | Where-Object { $_ -match 'untracked|overwritten|error' } | Select-Object -First 1)
-    Move-Item $stray (Join-Path $tmp 'brouillon-deplace.txt')
+    Add-Check "cas 1 (fichier non suivi sur un chemin que la PR ajoute : $strayRel) : la tache de nuit echoue net, rien de perdu" (
+        ($code -ne 0) -and ((Get-LogText 'nightly-cas-1') -match 'ECHEC pull --rebase') -and ((Get-Sha $pire 'HEAD') -eq $pireHead) -and
+        ([IO.File]::ReadAllText($stray) -match 'brouillon local') -and -not $rebasing) ((Get-LogText 'nightly-cas-1') -split '\r?\n' | Where-Object { $_ -match 'untracked|overwritten|error' } | Select-Object -First 1)
+    [IO.File]::Move($stray, (Join-Path $tmp 'brouillon-deplace.txt'))
     $code = Invoke-Logged 'pull-cas-1-repare' { git -C $pire pull --rebase --autostash origin main }
     Add-Check 'cas 1 : fichier deplace -> le tirage passe' (($code -eq 0) -and (Test-AtOrigin $pire) -and -not (Get-Status $pire)) (Get-Status $pire)
 } else {
-    Write-Host 'cas 1 : sans objet (la PR n''ajoute aucun fichier)'
+    Write-Host 'cas 1 : sans objet (la PR n''ajoute aucun fichier utilisable pour ce cas)'
 }
 # Cas 2 : une modification non commitee dans un fichier que le merge change aussi. Le tirage avance, mais remettre
-# la modification echoue : fichier en conflit, modification gardee dans le stash, et les tirages suivants echouent
-# tant que ce n'est pas repare. Reparation du RUNBOOK : remettre le fichier comme dans main.
-$editRel = $prModified | Select-Object -First 1
+# la modification echoue : fichier en conflit, modification gardee dans le stash ; ce passage peut finir « OK », les
+# suivants echouent. Reparation du RUNBOOK : remettre le fichier comme dans main.
+# Cas 3 : la meme modification, mais commitee sur le PC et pas poussee. « git status » ne montre rien ; chaque
+# passage echoue (conflit de rebase, annule). Reparation du RUNBOOK : mettre le commit de cote, revenir a main.
+$editRel = $prModified | Where-Object { Test-Path -LiteralPath (Join-Path $conflit $_) -PathType Leaf } | Select-Object -First 1
 if ($editRel) {
-    'brouillon local' | Set-Content (Join-Path $conflit $editRel)
-    $code1 = Invoke-Logged 'pull-cas-2' { git -C $conflit pull --rebase --autostash origin main }
+    $inTests = $editRel -match '^(plan-tools|code-rag)/'
+    [IO.File]::WriteAllText((Join-Path $conflit $editRel), "brouillon local`n")
+    $code1 = Invoke-Nightly 'nightly-cas-2' $conflit
     $unmerged = @(git -C $conflit -c core.quotepath=false diff --name-only --diff-filter=U)
     $stash = (git -C $conflit stash list | Out-String).Trim()
-    $code2 = Invoke-Logged 'pull-cas-2-suivant' { git -C $conflit pull --rebase --autostash origin main }
-    Add-Check "cas 2 (modification non commitee dans un fichier que la PR change : $editRel) : main recu, fichier en conflit, modification gardee dans le stash" (
-        (Test-AtOrigin $conflit) -and ($unmerged -contains $editRel) -and [bool]$stash) "code du tirage : $code1 ; du tirage suivant, sans reparation : $code2"
-    $code = Invoke-Logged 'pull-cas-2-repare' {
-        git -C $conflit restore --staged --worktree --source=HEAD -- $editRel
-        if ($LASTEXITCODE -eq 0) { git -C $conflit pull --rebase --autostash origin main }
-    }
+    $code2 = Invoke-Nightly 'nightly-cas-2-suivant' $conflit
+    Add-Check "cas 2 (modification non commitee dans un fichier que la PR change : $editRel) : main recu, fichier en conflit, modification gardee dans le stash, passage suivant en echec" (
+        (Test-AtOrigin $conflit) -and ($unmerged -contains $editRel) -and [bool]$stash -and ($inTests -or $code1 -eq 0) -and
+        ($code2 -ne 0) -and ((Get-LogText 'nightly-cas-2-suivant') -match 'ECHEC pull --rebase')) "code de la tache de nuit : $code1 ; au passage suivant, sans reparation : $code2"
+    git -C $conflit restore --staged --worktree --source=HEAD -- $editRel
+    $code = Invoke-Nightly 'nightly-cas-2-repare' $conflit
     $kept = (git -C $conflit stash show -p 'stash@{0}' 2>&1 | Out-String) -match 'brouillon local'
-    Add-Check 'cas 2 : reparation du RUNBOOK (git restore) -> checkout propre, tirage OK, modification toujours dans le stash' (
+    Add-Check 'cas 2 : reparation du RUNBOOK (git restore) -> la tache de nuit repart (code 0), checkout propre, modification toujours dans le stash' (
         ($code -eq 0) -and -not (Get-Status $conflit) -and $kept) (Get-Status $conflit)
+
+    [IO.File]::WriteAllText((Join-Path $avance $editRel), "brouillon local`n")
+    git -C $avance -c user.name=Essai -c user.email=essai@example.invalid commit -q -a -m 'note locale (essai)'
+    $localSha = Get-Sha $avance 'HEAD'
+    $ahead = (git -C $avance log --oneline origin/main..main | Out-String).Trim()
+    $code = Invoke-Nightly 'nightly-cas-3' $avance
+    $rebasing = (Test-Path (Join-Path $avance '.git' 'rebase-merge')) -or (Test-Path (Join-Path $avance '.git' 'rebase-apply'))
+    Add-Check "cas 3 (la meme modification, commitee sur le PC et pas poussee) : rien dans « git status », vu par « git log origin/main..main » ; la tache de nuit echoue, rebase annule, commit garde" (
+        (-not (Get-Status $avance)) -and [bool]$ahead -and ($code -ne 0) -and ((Get-LogText 'nightly-cas-3') -match 'ECHEC pull --rebase') -and
+        ((Get-Sha $avance 'HEAD') -eq $localSha) -and -not $rebasing) $ahead
+    git -C $avance branch garde-jo main
+    git -C $avance fetch -q origin
+    git -C $avance reset -q --hard origin/main
+    $code = Invoke-Nightly 'nightly-cas-3-repare' $avance
+    Add-Check 'cas 3 : reparation du RUNBOOK (commit mis de cote sur une branche, retour a origin/main) -> la tache de nuit repart, commit toujours la' (
+        ($code -eq 0) -and (Test-AtOrigin $avance) -and -not (Get-Status $avance) -and ((Get-Sha $avance 'garde-jo') -eq $localSha)) (Get-Status $avance)
 } else {
-    Write-Host 'cas 2 : sans objet (la PR ne modifie aucun fichier texte existant)'
+    Write-Host 'cas 2 et 3 : sans objet (la PR ne modifie aucun fichier texte utilisable pour ces cas)'
 }
 
 # --- 4. Les jumeaux des estimateurs, a cote du checkout de Jo ---------------------------------------
 Write-Host "`n== 4. Jumeaux des estimateurs sur le PC de Jo =="
-$profBefore = Get-ProfilePrint
+if ($IsWindows) { Set-TasksEnabled $true }   # comme chez Jo : taches actives pendant l'installation des jumeaux
 $repoBefore = Get-RepoPrint $main
+$rootBefore = Get-ProfileRoot
+$gitGlobalBefore = Get-GitGlobal
 $pathBefore = if ($IsWindows) { [Environment]::GetEnvironmentVariable('Path', 'User') } else { '' }
 $code = Invoke-Logged 'install-twin' { pwsh -NoProfile -File (Join-Path $main 'scripts' 'install-twin.ps1') -Branch 'Estimateur-2,estimateur-junior' -Remote $origin -NoInstall }
 Add-Check 'install-twin.ps1 -Branch Estimateur-2,estimateur-junior (code 0, tests compris)' ($code -eq 0) ((Get-LogText 'install-twin') -split '\r?\n' | Where-Object { $_ -match '^Taux de succes' } | Select-Object -Last 1)
@@ -441,10 +526,13 @@ try {
     $seedOk = (-not $s.PSObject.Properties['statusLine']) -and (-not $s.PSObject.Properties['enabledPlugins']) -and ($s.env.DISABLE_AUTOUPDATER -eq '1')
 } catch { }
 Add-Check 'dossier de config du compte estimateur : settings.json seme (sans statusLine / enabledPlugins, auto-update coupe)' $seedOk $cfg
-Add-Check 'compte principal de Jo (%USERPROFILE%\.claude et .claude.json) : pas un octet de change' ((Get-ProfilePrint) -ceq $profBefore)
-Add-Check 'checkout principal de Jo : pas un octet de change (fichiers ignores, config git, hooks, refs, stash compris)' ((Get-RepoPrint $main) -ceq $repoBefore) (Get-Status $main)
+Add-Check 'compte principal de Jo (%USERPROFILE%\.claude et .claude.json) : pas un octet de change depuis l''arrivee de la PR' ((Get-ProfilePrint) -ceq $profBefore)
+Add-Check 'checkout principal de Jo : pas un octet de change (fichiers ignores et tout .git compris, hors objets et index)' ((Get-RepoPrint $main) -ceq $repoBefore) (Get-Status $main)
+$rootNew = @(Get-ProfileRoot | Where-Object { $_ -notin $rootBefore })
+$rootGone = @($rootBefore | Where-Object { $_ -notin (Get-ProfileRoot) })
+Add-Check 'profil de Jo : a sa racine, seul le dossier de config du compte estimateur s''ajoute ; config git globale inchangee' (
+    (($rootNew -join ',') -eq '.claude-routeur') -and ($rootGone.Count -eq 0) -and ((Get-GitGlobal) -ceq $gitGlobalBefore)) "ajoute : $($rootNew -join ', ')$(if ($rootGone) { ' ; disparu : ' + ($rootGone -join ', ') })"
 if ($IsWindows) {
-    # Le seul changement fait au PC hors des dossiers des jumeaux : les shims de mise ajoutes au PATH utilisateur.
     $pathAfter = [Environment]::GetEnvironmentVariable('Path', 'User')
     Add-Check 'PATH utilisateur de Jo : shims mise ajoutes une fois, a la fin, rien d''autre de change' ($pathAfter -ceq ((@($pathBefore, $shims) | Where-Object { $_ }) -join ';')) $shims
 }
@@ -470,15 +558,18 @@ if ($IsWindows) {
 # Relance (mise a jour d'un jumeau deja installe, le chemin de tous les passages suivants) : rien n'est reecrit.
 $localBefore = Get-TreeHash $cfg
 $mdBefore = (Get-FileHash (Join-Path $dev 'lena-Estimateur-2' 'CLAUDE.local.md')).Hash
+$rootMid = Get-ProfileRoot
 $code = Invoke-Logged 'install-twin-2' { pwsh -NoProfile -File (Join-Path $main 'scripts' 'install-twin.ps1') -Branch 'Estimateur-2,estimateur-junior' -Remote $origin -NoInstall -SkipTests }
 Add-Check 'install-twin.ps1 relance : code 0, CLAUDE.local.md et settings.json conserves' (
     ($code -eq 0) -and ((Get-TreeHash $cfg) -ceq $localBefore) -and ((Get-FileHash (Join-Path $dev 'lena-Estimateur-2' 'CLAUDE.local.md')).Hash -eq $mdBefore))
 # Apres tout ca (installation, refus depuis un jumeau, lanceur, relance) : le cote de Jo est toujours intact.
-Add-Check 'apres la relance : compte principal et checkout principal de Jo toujours intacts, au octet pres' (((Get-ProfilePrint) -ceq $profBefore) -and ((Get-RepoPrint $main) -ceq $repoBefore))
+Add-Check 'apres la relance : compte principal, checkout principal, racine du profil et config git globale de Jo toujours intacts' (
+    ((Get-ProfilePrint) -ceq $profBefore) -and ((Get-RepoPrint $main) -ceq $repoBefore) -and (Test-SameLines $rootMid (Get-ProfileRoot)) -and ((Get-GitGlobal) -ceq $gitGlobalBefore))
 if ($IsWindows) {
     Add-Check 'apres la relance : PATH utilisateur inchange (shims pas ajoutes deux fois)' ([Environment]::GetEnvironmentVariable('Path', 'User') -ceq $pathAfter)
     $tasksEnd = @(Get-TaskDefs)
-    Add-Check 'taches planifiees toujours identiques apres les jumeaux (definition complete)' (Test-SameLines $tasksIdle $tasksEnd) (Get-FirstDiff $tasksIdle $tasksEnd)
+    Set-TasksEnabled $false
+    Add-Check 'taches planifiees apres les jumeaux : identiques a avant la PR, toujours actives (definition complete)' (Test-SameLines $tasksBefore $tasksEnd) (Get-FirstDiff $tasksBefore $tasksEnd)
 }
 
 # --- 5. Le lendemain : les taches de Jo tournent encore, jumeaux installes --------------------------
@@ -486,5 +577,6 @@ Write-Host "`n== 5. Apres l'installation des jumeaux =="
 $code = Invoke-Logged 'auto-commit-final' { pwsh -NoProfile -File (Join-Path $main 'scripts' 'auto-commit.ps1') }
 Add-Check 'auto-commit fonctionne encore (code 0), PC a jour avec origin, checkout propre' (
     ($code -eq 0) -and ((Get-Sha $main 'HEAD') -eq (Get-Sha $origin 'main')) -and -not (Get-Status $main)) (Get-Status $main)
+Add-Check 'a la toute fin : compte principal de Jo intact depuis l''arrivee de la PR (tests, sync-agents, install-tasks, jumeaux et lanceur compris)' ((Get-ProfilePrint) -ceq $profBefore)
 
 Write-Bilan
