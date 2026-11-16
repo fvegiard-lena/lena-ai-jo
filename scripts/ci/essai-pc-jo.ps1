@@ -5,10 +5,11 @@
 #             pousse, Claude Code et shims mise en place) ; la PR est fusionnee sur un origin local (merge commit,
 #             comme le bouton GitHub) ; un PC la recoit par auto-commit, un autre par la CI de nuit ; les jumeaux
 #             des estimateurs sont installes a cote. Verifie que rien de ce qui roule deja chez Jo ne change :
-#             scripts de production, taches planifiees, checkout complet, %USERPROFILE%\.claude et .claude.json,
-#             config git globale ; au profil, seuls s'ajoutent le dossier de config du compte estimateur et, au
-#             PATH utilisateur, les shims mise (une fois). Rejoue avec la vraie tache de nuit les trois cas ou le
-#             tirage bloque (RUNBOOK section 11), et leur reparation.
+#             scripts de production et taches planifiees ; de l'arrivee de la PR a la fin de l'essai,
+#             %USERPROFILE%\.claude, .claude.json, la config git globale et la config / les hooks du depot ;
+#             pendant l'installation des jumeaux, le checkout complet. Au profil, seuls s'ajoutent le dossier de
+#             config du compte estimateur et, au PATH utilisateur, les shims mise (une fois). Rejoue avec la vraie
+#             tache de nuit les trois cas ou le tirage bloque (RUNBOOK section 11), et leur reparation.
 #   pc-neuf : PC d'un estimateur sans mise ni Claude Code ; install-twin.ps1 installe ce qui manque.
 # Rien ne sort du runner : « origin » est un depot nu local ; ni GitHub ni le PC de Jo ne sont contactes.
 # Garde-fous : sous Windows, runner GitHub heberge seulement ; refus si %USERPROFILE%\dev\lena-ai-jo,
@@ -100,6 +101,14 @@ function Get-RepoPrint([string]$Dir) {
         git -C $Dir ls-files -v
         git -C $Dir ls-files -s
         'stash ' + (git -C $Dir stash list | Out-String)
+    ) -join "`n"
+}
+# Reglages du depot qu'aucune etape de l'essai n'a de raison de toucher : config, hooks, info/.
+function Get-RepoSettingsPrint([string]$Dir) {
+    @(
+        'config ' + (Get-FileHash -LiteralPath (Join-Path $Dir '.git' 'config')).Hash
+        Get-TreeHash (Join-Path $Dir '.git' 'hooks')
+        Get-TreeHash (Join-Path $Dir '.git' 'info')
     ) -join "`n"
 }
 # Ce qu'il y a a la racine du profil (noms seulement, sans les fichiers du registre de Windows).
@@ -371,8 +380,12 @@ Write-Host "`n== 3. Le PC de Jo recoit la PR =="
 # Un changement de config en attente (comme un jour normal) : auto-commit commite, tire main, pousse.
 Add-Content -Path (Join-Path $claudeDir 'CLAUDE.md') -Value "`n<!-- essai : changement local en attente -->"
 # A partir d'ici, du code de la PR tourne sous le compte de Jo (tests, sync-agents, install-tasks, jumeaux) :
-# le compte principal ne doit plus bouger d'un octet jusqu'a la fin de l'essai.
+# le compte principal, la config git globale et les reglages du depot (config, hooks, info) ne doivent plus
+# bouger d'un octet jusqu'a la fin de l'essai. La racine du profil est notee aussi.
 $profBefore = Get-ProfilePrint
+$gitGlobalBefore = Get-GitGlobal
+$repoSettingsBefore = Get-RepoSettingsPrint $main
+$rootArrival = Get-ProfileRoot
 $code = Invoke-Logged 'auto-commit-apres' { pwsh -NoProfile -File (Join-Path $main 'scripts' 'auto-commit.ps1') }
 Get-Content (Join-Path $main 'scripts' 'auto-commit.log') -ErrorAction SilentlyContinue | Set-Content (Join-Path $out 'auto-commit.script.log')
 Add-Check 'auto-commit apres le merge (code 0)' ($code -eq 0)
@@ -382,8 +395,8 @@ $snapFiles = @(git -C $main diff --name-only "$merged" HEAD)
 $outside = @($snapFiles | Where-Object { -not (& $inSnapshotZone) })
 Add-Check 'snapshot de Jo : seulement config/ et docs/INVENTAIRE.md (tout le reste = main apres le merge)' ($outside.Count -eq 0) "$($snapFiles.Count) fichier(s)$(if ($outside) { ' ; hors zone : ' + ($outside -join ', ') })"
 Add-Check 'checkout principal propre (rien de modifie, rien en trop)' (-not (Get-Status $main)) (Get-Status $main)
-git -C $main diff --quiet $base HEAD -- @prod
-Add-Check 'scripts de production de Jo identiques a avant (auto-commit, nightly, backup, snapshot)' ($LASTEXITCODE -eq 0)
+$prodChanged = @(git -C $main diff --name-only $base HEAD -- @prod)
+Add-Check 'scripts de production de Jo identiques a avant (auto-commit, nightly, backup, snapshot)' ($prodChanged.Count -eq 0) $(if ($prodChanged) { "modifie(s) par la PR : $($prodChanged -join ', ') - si c'est voulu, a juger a la main" })
 
 $code = Invoke-Nightly 'nightly' $main
 Add-Check 'CI de nuit sur le PC deja a jour : tests verts (code 0)' ($code -eq 0)
@@ -467,7 +480,8 @@ if ($strayRel) {
 # suivants echouent. Reparation du RUNBOOK : remettre le fichier comme dans main.
 # Cas 3 : la meme modification, mais commitee sur le PC et pas poussee. « git status » ne montre rien ; chaque
 # passage echoue (conflit de rebase, annule). Reparation du RUNBOOK : mettre le commit de cote, revenir a main.
-$editRel = $prModified | Where-Object { Test-Path -LiteralPath (Join-Path $conflit $_) -PathType Leaf } | Select-Object -First 1
+# Le fichier choisi n'est jamais le script de nuit lui-meme : ces cas le lancent, il ne peut pas etre le brouillon.
+$editRel = $prModified | Where-Object { $_ -ne 'scripts/lena-nightly.ps1' -and (Test-Path -LiteralPath (Join-Path $conflit $_) -PathType Leaf) } | Select-Object -First 1
 if ($editRel) {
     $inTests = $editRel -match '^(plan-tools|code-rag)/'
     [IO.File]::WriteAllText((Join-Path $conflit $editRel), "brouillon local`n")
@@ -493,12 +507,12 @@ if ($editRel) {
     Add-Check "cas 3 (la meme modification, commitee sur le PC et pas poussee) : rien dans « git status », vu par « git log origin/main..main » ; la tache de nuit echoue, rebase annule, commit garde" (
         (-not (Get-Status $avance)) -and [bool]$ahead -and ($code -ne 0) -and ((Get-LogText 'nightly-cas-3') -match 'ECHEC pull --rebase') -and
         ((Get-Sha $avance 'HEAD') -eq $localSha) -and -not $rebasing) $ahead
-    git -C $avance branch garde-jo main
-    git -C $avance fetch -q origin
-    git -C $avance reset -q --hard origin/main
+    # La ligne du RUNBOOK, telle quelle : branche datee, et la suite seulement si la branche a ete creee.
+    $garde = "garde-jo-$(Get-Date -Format yyyyMMdd-HHmm)"
+    git -C $avance branch $garde main && git -C $avance fetch -q origin && git -C $avance reset -q --hard origin/main
     $code = Invoke-Nightly 'nightly-cas-3-repare' $avance
-    Add-Check 'cas 3 : reparation du RUNBOOK (commit mis de cote sur une branche, retour a origin/main) -> la tache de nuit repart, commit toujours la' (
-        ($code -eq 0) -and (Test-AtOrigin $avance) -and -not (Get-Status $avance) -and ((Get-Sha $avance 'garde-jo') -eq $localSha)) (Get-Status $avance)
+    Add-Check 'cas 3 : reparation du RUNBOOK (commit mis de cote sur une branche datee, retour a origin/main) -> la tache de nuit repart, commit toujours la' (
+        ($code -eq 0) -and (Test-AtOrigin $avance) -and -not (Get-Status $avance) -and ((Get-Sha $avance $garde) -eq $localSha)) (Get-Status $avance)
 } else {
     Write-Host 'cas 2 et 3 : sans objet (la PR ne modifie aucun fichier texte utilisable pour ces cas)'
 }
@@ -508,7 +522,6 @@ Write-Host "`n== 4. Jumeaux des estimateurs sur le PC de Jo =="
 if ($IsWindows) { Set-TasksEnabled $true }   # comme chez Jo : taches actives pendant l'installation des jumeaux
 $repoBefore = Get-RepoPrint $main
 $rootBefore = Get-ProfileRoot
-$gitGlobalBefore = Get-GitGlobal
 $pathBefore = if ($IsWindows) { [Environment]::GetEnvironmentVariable('Path', 'User') } else { '' }
 $code = Invoke-Logged 'install-twin' { pwsh -NoProfile -File (Join-Path $main 'scripts' 'install-twin.ps1') -Branch 'Estimateur-2,estimateur-junior' -Remote $origin -NoInstall }
 Add-Check 'install-twin.ps1 -Branch Estimateur-2,estimateur-junior (code 0, tests compris)' ($code -eq 0) ((Get-LogText 'install-twin') -split '\r?\n' | Where-Object { $_ -match '^Taux de succes' } | Select-Object -Last 1)
@@ -530,10 +543,10 @@ try {
 } catch { }
 Add-Check 'dossier de config du compte estimateur : settings.json seme (sans statusLine / enabledPlugins, auto-update coupe)' $seedOk $cfg
 Add-Check 'compte principal de Jo (%USERPROFILE%\.claude et .claude.json) : pas un octet de change depuis l''arrivee de la PR' ((Get-ProfilePrint) -ceq $profBefore)
-Add-Check 'checkout principal de Jo : pas un octet de change (fichiers ignores et tout .git compris, hors objets et index)' ((Get-RepoPrint $main) -ceq $repoBefore) (Get-Status $main)
+Add-Check 'checkout principal de Jo : pas un octet de change pendant l''installation des jumeaux (fichiers ignores et tout .git compris, hors objets)' ((Get-RepoPrint $main) -ceq $repoBefore) (Get-Status $main)
 $rootNew = @(Get-ProfileRoot | Where-Object { $_ -notin $rootBefore })
 $rootGone = @($rootBefore | Where-Object { $_ -notin (Get-ProfileRoot) })
-Add-Check 'profil de Jo : a sa racine, seul le dossier de config du compte estimateur s''ajoute ; config git globale inchangee' (
+Add-Check 'profil de Jo : a sa racine, l''installation des jumeaux n''ajoute que le dossier de config du compte estimateur ; config git globale inchangee depuis l''arrivee de la PR' (
     (($rootNew -join ',') -eq '.claude-routeur') -and ($rootGone.Count -eq 0) -and ((Get-GitGlobal) -ceq $gitGlobalBefore)) "ajoute : $($rootNew -join ', ')$(if ($rootGone) { ' ; disparu : ' + ($rootGone -join ', ') })"
 if ($IsWindows) {
     $pathAfter = [Environment]::GetEnvironmentVariable('Path', 'User')
@@ -581,5 +594,9 @@ $code = Invoke-Logged 'auto-commit-final' { pwsh -NoProfile -File (Join-Path $ma
 Add-Check 'auto-commit fonctionne encore (code 0), PC a jour avec origin, checkout propre' (
     ($code -eq 0) -and ((Get-Sha $main 'HEAD') -eq (Get-Sha $origin 'main')) -and -not (Get-Status $main)) (Get-Status $main)
 Add-Check 'a la toute fin : compte principal de Jo intact depuis l''arrivee de la PR (tests, sync-agents, install-tasks, jumeaux et lanceur compris)' ((Get-ProfilePrint) -ceq $profBefore)
+Add-Check 'a la toute fin : config git globale et reglages du depot de Jo (config, hooks, info) intacts depuis l''arrivee de la PR' (
+    ((Get-GitGlobal) -ceq $gitGlobalBefore) -and ((Get-RepoSettingsPrint $main) -ceq $repoSettingsBefore))
+$rootExtra = @(Get-ProfileRoot | Where-Object { $_ -notin $rootArrival -and $_ -ne '.claude-routeur' })
+Add-Check 'racine du profil depuis l''arrivee de la PR : rien d''autre que le dossier de config du compte estimateur' ($rootExtra.Count -eq 0) ($rootExtra -join ', ') $false
 
 Write-Bilan

@@ -31,7 +31,8 @@ trap 'rm -rf "$tmp" "$idx" "$idx.lock"' EXIT
 
 # A private copy of the index: adding to it shows what "git add" would do, without touching the real one.
 real="$(git rev-parse --git-path index)"
-if [ -f "$real" ]; then cp "$real" "$idx"; fi
+# cp -p: with the copy's date kept, git still re-reads a file changed in the same second as the index.
+if [ -f "$real" ]; then cp -p "$real" "$idx"; fi
 staged() { GIT_INDEX_FILE="$idx" git "$@"; }
 # "git add" into the private index, exactly as the real one would do it: its warnings are dropped, its refusal
 # (core.safecrlf=true, for instance) stops the script, since the commit could not be made either.
@@ -105,8 +106,9 @@ staged cat-file blob :AGENTS.md | cmp -s - "$tmp/new" ||
     die "AGENTS.md, as git would commit it, still differs from docs/LENA.md. Check: git ls-files --eol AGENTS.md docs/LENA.md"
 staged_add -A -- .claude/skills .agents/skills
 tab="$(printf '\t')"
-# Mode, content and path of every file git would commit under $1, paths relative to $1.
-as_committed() { staged -c core.quotepath=false ls-files -s -- "$1" | sed "s|$tab$1/|$tab|"; }
+# Content and path of every file git would commit under $1, paths relative to $1 (not the mode: the CI's
+# diff does not compare it, and a Windows checkout does not record the executable bit).
+as_committed() { staged -c core.quotepath=false ls-files -s -- "$1" | cut -d' ' -f2- | sed "s|$tab$1/|$tab|"; }
 source_side="$(as_committed .claude/skills)"
 [ -n "$source_side" ] || die ".claude/skills: git would commit no file from it"
 if [ "$source_side" != "$(as_committed .agents/skills)" ]; then
