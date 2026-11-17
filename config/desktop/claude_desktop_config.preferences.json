@@ -29,6 +29,9 @@
       "http://127.0.0.1:8000",
       "http://127.0.0.1:8080"
     ],
+    "localAgentModeTrustedFolders": [
+      "S:\\Soumission\\Soumission 2026\\s-1939 cmpl"
+    ],
     "remoteSessionFolderGrants": {
       "session_015vETVf1d4JMWgCH3ZWzdha": [
         {
@@ -55,9 +58,6 @@
     "orgWorkAcrossAppsDisabled": false,
     "ccdScheduledTasksEnabled": true,
     "httpCacheZstdLatched": true,
-    "userDataCarryAtNextLaunch": true,
-    "userDataMoveAtNextLaunch": true,
-    "userDataOutsidePackageAnswer": true,
     "sidebarMode": "chat",
     "bypassPermissionsModeEnabled": true,
     "bypassPermissionsOptInByAccount": {
@@ -261,8 +261,14 @@
         }
       }
     },
-    "localAgentModeTrustedFolders": [
-      "S:\\Soumission\\Soumission 2026\\s-1939 cmpl"
-    ]
+    "remoteChatFolderGrants": {
+      "<uuid-10>": {
+        "orgUuid": "<uuid-4>",
+        "accountUuid": "<uuid-5>",
+        "folders": [
+          "%USERPROFILE%\\BR_EP2026-082"
+        ]
+      }
+    }
   }
 }
