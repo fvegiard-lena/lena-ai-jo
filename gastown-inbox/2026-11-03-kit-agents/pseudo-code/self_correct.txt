@@ -1,0 +1,12 @@
+FUNCTION self_correct(violation):
+    quote = capture_agent_output(violation)      # what it actually said
+    rule  = identify_rule(violation)             # section number
+
+    # Redo, don't apologize
+    rerun_corrected_task(rule)
+
+    verify = capture_tool_output()               # proof of redo
+    update(tasks/todo.md, "Corrected: " + rule + " — " + verify)
+
+    if cannot_encode_in_script(rule):
+        append(AGENTS.md, rule_lesson)

@@ -6,7 +6,8 @@ Trois couches, de la plus simple à la plus poussée :
 
 | Couche | Où ça roule | Quand | Ce que ça fait | Coût |
 |---|---|---|---|---|
-| 1. GitHub Actions `ci.yml` | Serveurs GitHub (Ubuntu) | Chaque push / PR sur `main` | Secrets (gitleaks), JSON, lint + tests | Gratuit (repo public) |
+| 1. GitHub Actions `ci.yml` | Serveurs GitHub (Ubuntu) | Chaque push / PR sur `main` | Secrets (gitleaks), parité Claude / ChatGPT, JSON, lint + tests | Gratuit (repo public) |
+| 1 bis. GitHub Actions `essai-pc-jo.yml` | Serveurs GitHub (Windows) | Chaque PR vers `main`, ou à la main | Un PC de Jo simulé reçoit la PR par les vrais scripts planifiés ; installation des jumeaux | Gratuit (repo public) |
 | 2. CI de nuit `lena-nightly-ci` | PC de Jo | 02:00 chaque nuit | Tests ; si rouge, Claude Code headless tente une correction | 2 $ max par nuit, seulement si rouge |
 | 3. `claude-code-action` (plus tard) | Runner auto-hébergé sur le PC | Sur demande | Claude dans GitHub (issues, PR) | Abonnement Claude |
 
@@ -17,15 +18,31 @@ Trois couches, de la plus simple à la plus poussée :
 À chaque push ou PR sur `main` :
 
 1. **gitleaks** sur tout l'historique (`.gitleaks.toml` : règles par défaut, **aucune** exception, `docs/` compris).
-2. **JSON valides** dans `config/` (`python3 -m json.tool`).
-3. **plan-tools** : `uv sync --locked`, `ruff check`, `pytest`.
-4. **code-rag** : `uv sync --locked`, `ruff check`, `pytest -m "not integration"` (les tests d'intégration demandent Qdrant + Ollama : en local seulement).
-5. **Biome** si un `biome.json` existe.
+2. **Parité Claude / ChatGPT** : `AGENTS.md` (bloc `LENA:START` / `LENA:END`) identique à `docs/LENA.md`, `.agents/skills` identique à `.claude/skills`. Rouge → `bash scripts/sync-agents.sh` (RUNBOOK §12).
+3. **JSON valides** dans `config/` (`python3 -m json.tool`).
+4. **plan-tools** : `uv sync --locked`, `ruff check`, `pytest`.
+5. **code-rag** : `uv sync --locked`, `ruff check`, `pytest -m "not integration"` (les tests d'intégration demandent Qdrant + Ollama : en local seulement).
+6. **Biome** si un `biome.json` existe.
 
 `--locked` fait échouer la CI si `uv.lock` n'a pas suivi `pyproject.toml` : après un `uv add`, toujours commiter le `uv.lock`.
 Permissions du jeton : `contents: read`, `pull-requests: read` (lecture seule).
 
-**Aujourd'hui, c'est un statut seulement** (✓ ou ✗ sur le commit) : rien n'empêche un push rouge. Le repo est maintenant **public**, donc la protection de branche **est disponible** sur ce plan — **à activer via `gh api`** :
+### Essai PC de Jo — `.github/workflows/essai-pc-jo.yml`
+
+À chaque PR vers `main` (ou à la main : onglet Actions → « Essai PC de Jo » → *Run workflow*, en choisissant la branche de la PR sous « Use workflow from » ; lancé depuis `main`, le script s'arrête en erreur : rien à essayer), deux runners Windows jetables lancent `scripts/ci/essai-pc-jo.ps1`. Rien ne sort du runner (« origin » y est un dépôt nu local) ; ni GitHub ni le vrai PC de Jo ne sont touchés.
+
+| Job | Ce qu'il rejoue | Ce qu'il prouve |
+|---|---|---|
+| `pc-jo` | Le PC de Jo part de `main` d'avant la PR (checkout en CRLF, vraies tâches planifiées, snapshot poussé, Claude Code et shims mise en place). La PR entre dans `main` par merge commit. Un PC la reçoit par `auto-commit.ps1` (snapshot en attente), un deuxième par `lena-nightly.ps1` (rien en attente). Les jumeaux `Estimateur-2` et `estimateur-junior` sont installés à côté, puis le script est relancé (mise à jour). Trois autres PC rejouent, avec la vraie tâche de nuit, les trois cas où le tirage bloque (RUNBOOK §11). | Les scripts de production de Jo et la définition complète de ses tâches planifiées (toujours actives, aucune en plus) ne changent pas. `%USERPROFILE%\.claude`, `%USERPROFILE%\.claude.json`, la config git globale et les réglages du dépôt de Jo (`.git\config`, hooks, `info`) ne changent pas d'un octet depuis l'arrivée de la PR jusqu'à la fin (tests, `sync-agents.sh`, `install-tasks.ps1`, jumeaux, lanceur). Pendant l'installation des jumeaux et sa relance : le checkout de Jo ne change pas d'un octet (fichiers ignorés par git et `.git` compris, hors objets) ; à la racine du profil seul s'ajoute le dossier de config du compte estimateur ; le PATH utilisateur ne reçoit que les shims mise, une seule fois. Les tests passent sur Windows ; le lanceur d'un jumeau part sous le bon dossier de config ; `install-tasks.ps1` refuse un jumeau ; RUNBOOK §12 donne un commit que l'étape Parité de `ci.yml` accepte ; dans les trois cas de blocage, la tâche de nuit échoue comme écrit, rien n'est perdu, et la réparation du RUNBOOK la fait repartir. |
+| `pc-neuf` | Un PC sans mise ni Claude Code lance `install-twin.ps1 -Branch Estimateur-2`. | Le script installe ce qui manque et monte le jumeau. Les outils que le runner ne peut pas installer (réseau, winget) sortent en avertissement, pas en échec. |
+
+L'essai se règle sur la PR elle-même : les fichiers des cas de blocage sont pris dans ce qu'elle ajoute et modifie (un cas sans fichier utilisable est sauté, pas compté) ; « sans conflit » se juge comme sur GitHub, contre `main` d'avant la PR ; une PR qui modifie exprès un des quatre scripts de production de Jo fait échouer la ligne « scripts de production de Jo identiques à avant » — c'est voulu, la ligne nomme les fichiers et le reste se juge à la main ; le jumeau de la branche de la PR est pris à la tête de la PR, l'autre là où sa branche est vraiment sur GitHub (avertissement si elle n'est pas à la tête de la PR : la copie conforme est à refaire).
+
+Résultat : tableau OK / FAIL / avertissement et taux de succès dans l'onglet *Summary* du run ; journaux détaillés dans l'artefact du run. **Ce n'est pas un check obligatoire** (seul `ci` l'est) : à regarder avant de merger. Garde-fous : sous Windows, le script ne tourne que sur un runner GitHub hébergé ; partout, il refuse de partir si `%USERPROFILE%\dev\lena-ai-jo`, `%USERPROFILE%\.claude` ou `%USERPROFILE%\.claude.json` existent déjà. Hors Windows, il ne part qu'avec `LENA_ESSAI_LOCAL=1` (mise au point du script, avec un `USERPROFILE` jetable ; les parties propres à Windows sont sautées).
+
+### Protection de `main`
+
+**`main` est protégée** (constaté le 2026-11-16) : le check `ci` doit être vert pour merger une PR. La commande qui règle cette protection :
 
 ```powershell
 gh api -X PUT repos/fvegiard-lena/lena-ai-jo/branches/main/protection `
@@ -46,11 +63,11 @@ gh api -X PUT repos/fvegiard-lena/lena-ai-jo/branches/main/protection `
 
 ## 2. CI de nuit — `scripts/lena-nightly.ps1` (Claude Code headless)
 
-Tâche planifiée **`lena-nightly-ci`** : 02:00 heure locale (suit l'heure d'été), RunLevel **Limited**, `-NonInteractive`, 2 h maximum, rattrapée au réveil si le PC dormait (`StartWhenAvailable`). Créée par `pwsh -File scripts\install-tasks.ps1`.
+Tâche planifiée **`lena-nightly-ci`** : 02:00 heure locale (suit l'heure d'été), RunLevel **Limited**, `-NonInteractive`, 2 h maximum, rattrapée au réveil si le PC dormait (`StartWhenAvailable`). Créée par `pwsh -File "$env:USERPROFILE\dev\lena-ai-jo\scripts\install-tasks.ps1"` (depuis le checkout principal seulement : le script refuse un jumeau).
 
 ### Ce que fait le script
 
-1. `git pull --rebase --autostash origin main`. Conflit → rebase annulé, log, sortie en erreur.
+1. `git pull --rebase --autostash origin main`. Conflit de rebase → rebase annulé, log, sortie en erreur. Modification locale non commitée que git ne peut pas remettre par-dessus : ce passage continue, les suivants échouent (RUNBOOK §11).
 2. Tests :
    ```powershell
    uv run --project plan-tools pytest -q plan-tools

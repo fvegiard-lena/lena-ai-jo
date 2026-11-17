@@ -1,0 +1,20 @@
+flowchart TD
+    A[Defect detected] --> B[Capture BEFORE<br/>exact command + output]
+    B --> C[Classify]
+    C -->|AUTO-FIX| D[Source right fix<br/>§2 docs/repo/internet]
+    C -->|GUARDED-FIX| E[Create undo path<br/>backup/VCS/dry-run]
+    C -->|STOP candidate| F{Knowledge<br/>or authority?}
+    E --> D
+
+    F -->|Knowledge| G[§1.6 Search Loop]
+    F -->|Authority| H[§8.6 Ledger<br/>then STOP]
+
+    G --> D
+    D --> I[Apply minimal fix<br/>root cause, no suppressors]
+    I --> J[Re-run IDENTICAL detection]
+    J --> K{Green?}
+    K -->|No| L{Ledger<br/>complete?}
+    K -->|Yes| M[Capture AFTER<br/>record row]
+    L -->|No| G
+    L -->|Yes| H
+    M --> N[Next defect<br/>or Clean-Room]

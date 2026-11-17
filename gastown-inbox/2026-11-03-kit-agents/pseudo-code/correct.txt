@@ -1,0 +1,18 @@
+FUNCTION correct(defect):
+    before = capture(defect.detect_cmd)      # exact output
+
+    loop attempt in 1..∞:                    # bound = ledger, not count
+        source = search_source(defect)       # §2.1 / §1.6
+        if source is EMPTY:
+            ledger = exhaust_search(defect)  # §8.6
+            if ledger.incomplete: continue   # keep searching
+            return STOP(defect, ledger)      # authority or policy only
+
+        apply_minimal_fix(source, defect)    # §9.2 root cause
+        after = capture(defect.detect_cmd)   # IDENTICAL command
+
+        if after.is_green():
+            record(before, source, after)
+            return FIXED
+
+        defect = defect.refine(after)        # new failure, new defect

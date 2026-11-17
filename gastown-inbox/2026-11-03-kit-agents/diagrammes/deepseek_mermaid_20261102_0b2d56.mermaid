@@ -1,0 +1,54 @@
+sequenceDiagram
+    autonumber
+    participant A as Agent
+    participant SH as shell MCP
+    participant C7 as context7 MCP
+    participant FS as filesystem MCP
+    participant H as stop-gate hook
+    participant GH as github MCP
+    participant W as fetch MCP
+
+    A->>SH: pytest -q
+    SH-->>A: 5 pass, 2 fail<br/>ImportError: 'retry' undefined
+    Note over A: BEFORE captured
+
+    A->>SH: ruff --version
+    SH-->>A: not found
+    Note over A: §1.4 defect (missing tooling)
+
+    A->>C7: resolve-library-id("ruff")
+    C7-->>A: /astral-sh/ruff
+    A->>C7: get-library-docs(pinned=0.7.x)
+    C7-->>A: install + config docs
+    Note over A: §2.1 source captured
+
+    A->>SH: python -m venv .venv && .venv/bin/pip install ruff==0.7.*
+    SH-->>A: installed
+    A->>FS: write tasks/todo.md<br/>provenance + undo path
+    FS-->>A: ok
+
+    A->>SH: .venv/bin/ruff check .
+    SH-->>A: 42 errors
+    Note over A: correct() loop fires
+
+    A->>GH: search_code("retry helper python <this repo>")
+    GH-->>A: repo already has src/util/retry.py
+    A->>FS: read src/util/retry.py
+    FS-->>A: retry() exists, exported
+    Note over A: §2.4 reuse repo code
+
+    A->>FS: edit test_imports.py → from src.util.retry import retry
+    A->>SH: .venv/bin/ruff check .
+    SH-->>A: 0 errors, 42 fixed
+    A->>SH: pytest -q
+    SH-->>A: 7 pass
+
+    A->>SH: .venv/bin/ruff format --check .
+    SH-->>A: 3 would reformat → run ruff format → 0
+    A->>SH: mypy .
+    SH-->>A: success
+
+    Note over A: Write ALL GREEN to tasks/.logs/clean-room.log
+
+    A->>H: Stop
+    H-->>A: PASS (clean-room.log = ALL GREEN,<br/>no unchecked todo, no bare [unverified])

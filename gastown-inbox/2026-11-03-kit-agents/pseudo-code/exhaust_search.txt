@@ -1,0 +1,31 @@
+FUNCTION exhaust_search(blocker):
+    ledger = []
+    paths = [
+        official_docs(pinned_version),
+        repo_files(relevant),
+        tool_help_schema(),
+        package_registry(pinned_version),
+        changelog(version_boundary),
+        source_code(module),
+        issue_tracker(exact_error),
+        web_search(exact_error + version),
+        community(exact_error, version_caveat)
+    ]
+
+    FOR path IN paths:
+        query = build_query(path, blocker)
+        result = path.run(query)
+        ledger.append({path, query, result.summary})
+
+        if result.answers(blocker):
+            return SOLUTION(result)
+
+        # reformulate once if empty (§8.6 rule)
+        if result.empty:
+            query2 = reformulate(query)
+            result2 = path.run(query2)
+            ledger.append({path, query2, result2.summary})
+            if result2.answers(blocker):
+                return SOLUTION(result2)
+
+    return NO_SOLUTION(ledger)     # caller decides STOP vs. policy

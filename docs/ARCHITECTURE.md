@@ -74,7 +74,9 @@ flowchart LR
 | `email-vectorizer/` | Outlook → Ollama → Qdrant + MCP `email-search` — « Retrouve le courriel… » **(bientôt — en attente de la réparation Outlook)** | Ce repo (raccourci `%USERPROFILE%\email-vectorizer`) |
 | `config/` | Copie quotidienne de la config, secrets masqués | `scripts/snapshot-config.ps1` |
 | `scripts/` | Sauvegarde, snapshot + commit, CI de nuit, installation des tâches | `install-tasks.ps1` |
-| GitHub Actions | Vérifie chaque push : secrets, JSON, tests | `.github/workflows/ci.yml` ([CI-CD](CI-CD.md)) |
+| Jumeaux | Un checkout par branche à côté de `lena-ai-jo`, un compte Claude par jumeau (Francis dev, estimateurs) | `scripts/install-twin.ps1` ([RUNBOOK](RUNBOOK.md) §11) |
+| Copies ChatGPT / Codex | `AGENTS.md` et `.agents/skills`, recopiés de `docs/LENA.md` et `.claude/skills` | `scripts/sync-agents.sh` ([RUNBOOK](RUNBOOK.md) §12) |
+| GitHub Actions | Vérifie chaque push : secrets, parité Claude / ChatGPT, JSON, tests ; chaque PR vers `main` : essai sur un PC de Jo simulé | `.github/workflows/ci.yml`, `essai-pc-jo.yml` ([CI-CD](CI-CD.md)) |
 | CI de nuit | Tests chaque nuit ; si rouge, Claude Code (headless, plafond 2 $) tente une correction | `scripts/lena-nightly.ps1` ([CI-CD](CI-CD.md)) |
 
 ## Tâches planifiées

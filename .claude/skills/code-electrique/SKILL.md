@@ -5,16 +5,19 @@ description: Réponses citées sur les codes électriques et les références d'
 
 # code-electrique — réponses citées, jamais inventées
 
-Outil : `%USERPROFILE%\dev\lena-ai-jo\code-rag` (recherche dans les PDF indexés ;
+Outil : `code-rag` du checkout courant (`lena-ai-jo` ou un jumeau, RUNBOOK §11) (recherche dans les PDF indexés ;
 il affiche des extraits, il ne rédige pas la réponse).
-Commandes : **PowerShell (pwsh)** — `$env:USERPROFILE` y est développé ; en Git Bash, remplacer
-`"$env:USERPROFILE\dev\…"` par `~/dev/…`.
+Commandes : depuis la racine du checkout (le dossier de travail de Claude Code), en PowerShell ou Git Bash.
+Si le dossier de travail n'est pas cette racine (ex. commande lancée par Desktop Commander), s'y placer d'abord :
+PowerShell `Set-Location "$env:USERPROFILE\dev\lena-ai-jo"` (chez Jo ; dans un jumeau : son dossier `lena-<branche>`),
+Git Bash `cd ~/dev/lena-ai-jo` (jumeau : `cd ~/dev/lena-<branche>`, ou son dossier sous `-Root`). L'erreur
+`error: Project directory `code-rag` does not exist` veut dire que ce pas manque.
 
 ## Étapes
 
 1. **Vérifier que la source est indexée** :
    ```powershell
-   uv run --project "$env:USERPROFILE\dev\lena-ai-jo\code-rag" code-rag status
+   uv run --project code-rag code-rag status
    ```
    Source attendue : code / CSA / CÉQ / article / calibre / remplissage → « CSA 2026 » ;
    unités de main-d'œuvre / taux / NECA → « NECA 2022 » et/ou « National Estimator 2025 ».
@@ -23,7 +26,7 @@ Commandes : **PowerShell (pwsh)** — `$env:USERPROFILE` y est développé ; en 
    - Si Qdrant ou Ollama est en `PROBLÈME` : transmettre le message à Jo et s'arrêter.
 2. **Chercher les extraits** :
    ```powershell
-   uv run --project "$env:USERPROFILE\dev\lena-ai-jo\code-rag" code-rag ask "<question>" --k 6
+   uv run --project code-rag code-rag ask "<question>" --k 6
    ```
    Ajouter `--source "CSA 2026"` (ou `"NECA 2022"`, `"National Estimator 2025"`) quand la
    question vise clairement une source. NECA et National Estimator sont en anglais : si rien

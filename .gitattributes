@@ -1,0 +1,2 @@
+# Scripts Git Bash : toujours LF, meme sur un checkout Windows (core.autocrlf=true casse bash).
+*.sh text eol=lf

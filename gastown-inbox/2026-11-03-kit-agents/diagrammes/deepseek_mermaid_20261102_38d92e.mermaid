@@ -1,0 +1,29 @@
+stateDiagram-v2
+    [*] --> Inventory: session start
+    Inventory --> ConfirmGoal: tools listed
+    ConfirmGoal --> Decompose: scope bounded
+    Decompose --> Execute: sub-tasks numbered
+
+    Execute --> Detect: each step produces output
+    Detect --> Classify: defect found
+    Classify --> AutoFix: AUTO-FIX
+    Classify --> GuardedFix: GUARDED-FIX
+    Classify --> StopGate: STOP candidate
+
+    AutoFix --> ReVerify
+    GuardedFix --> ReVerify
+    ReVerify --> Detect: still broken → loop
+    ReVerify --> NextStep: green
+
+    NextStep --> Detect: more sub-tasks
+    NextStep --> CleanRoom: list exhausted
+
+    CleanRoom --> Green: all gates pass
+    CleanRoom --> Detect: gate fails
+    Green --> Summarize
+    Summarize --> [*]
+
+    StopGate --> SearchLoop: knowledge blocker?
+    SearchLoop --> Detect: solution found
+    SearchLoop --> StopLedger: authority blocker
+    StopLedger --> Summarize: ledger complete
