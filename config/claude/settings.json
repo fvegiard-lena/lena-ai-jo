@@ -12,7 +12,7 @@
     ],
     "defaultMode": "bypassPermissions"
   },
-  "model": "sonnet",
+  "model": "claude-fable-5-2[1m]",
   "enableWorkflows": true,
   "statusLine": {
     "type": "command",
@@ -36,17 +36,23 @@
     "claude-code-setup@claude-plugins-official": true,
     "oh-my-claudecode@omc": true
   },
+  "language": "français",
   "skipWebFetchPreflight": true,
   "effortLevel": "high",
   "modelSettings": {
     "claude-sonnet-5": {
       "effortLevel": "low"
+    },
+    "claude-fable-5-2": {
+      "effortLevel": "high"
     }
   },
   "autoUpdatesChannel": "latest",
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true,
+  "switchModelsOnFlag": true,
   "inputNeededNotifEnabled": true,
-  "agentPushNotifEnabled": true
+  "agentPushNotifEnabled": true,
+  "remoteControlAtStartup": true
 }

@@ -47,9 +47,18 @@
         "%USERPROFILE%\\S-1905_cegep"
       ]
     },
+    "remoteChatFolderGrants": {
+      "<uuid-4>": {
+        "orgUuid": "<uuid-5>",
+        "accountUuid": "<uuid-6>",
+        "folders": [
+          "%USERPROFILE%\\BR_EP2026-082"
+        ]
+      }
+    },
     "coworkLegacyRootGrantsPruned": true,
     "coworkHasBoundRoutine": {
-      "<uuid-4>": true
+      "<uuid-5>": true
     },
     "allowAllBrowserActions": true,
     "dispatchCodeTasksPermissionMode": "bypassPermissions",
@@ -61,18 +70,18 @@
     "sidebarMode": "chat",
     "bypassPermissionsModeEnabled": true,
     "bypassPermissionsOptInByAccount": {
-      "<uuid-5>": true,
-      "<uuid-6>": true
+      "<uuid-6>": true,
+      "<uuid-7>": true
     },
     "bypassPermissionsGateByAccount": {
-      "<uuid-5>": true,
-      "<uuid-6>": true
+      "<uuid-6>": true,
+      "<uuid-7>": true
     },
     "dockBounceEnabled": true,
     "coworkWebSearchEnabled": true,
     "coworkModelAutoFallbackByAccount": {
-      "<uuid-5>": true,
-      "<uuid-6>": true
+      "<uuid-6>": true,
+      "<uuid-7>": true
     },
     "keepAwakeEnabled": true,
     "coworkOnboardingResumeStep": null,
@@ -106,12 +115,12 @@
       },
       "cc-landing-draft-permission-mode": "bypassPermissions",
       "dframe-group-scopes": {},
-      "epitaxy-auto-mode-denial-count.<uuid-5>": 3,
+      "epitaxy-auto-mode-denial-count.<uuid-6>": 3,
       "epitaxy-transcript-links-in-preview": true,
       "epitaxy-transcript-links-chooser-seen": true,
       "starred-local-routines": [],
       "dframe-code-sections": {
-        "<uuid-5>/<uuid-4>": {
+        "<uuid-6>/<uuid-5>": {
           "sections": [
             {
               "id": "pinned",
@@ -148,7 +157,7 @@
               "shown": false
             },
             {
-              "id": "cg-<uuid-7>",
+              "id": "cg-<uuid-8>",
               "kind": "manual",
               "v": 2,
               "name": "Estimateur",
@@ -187,7 +196,7 @@
           "migratedFrom": 1,
           "prefsSeeded": true
         },
-        "<uuid-6>/<uuid-8>": {
+        "<uuid-7>/<uuid-9>": {
           "sections": [
             {
               "id": "pinned",
@@ -246,7 +255,7 @@
         }
       },
       "epitaxy-serene-whistle-decided": {
-        "local_<uuid-9>": {
+        "local_<uuid-10>": {
           "base": "claude-fable-5-1",
           "kept": true
         }
@@ -259,16 +268,11 @@
           "base": "claude-fable-5-1",
           "state": "done"
         }
-      }
+      },
+      "fastMode": false,
+      "fastModeStateMigrated.<uuid-5>.<uuid-6>": true,
+      "ultrathinkAvailable.claude-fable-5-2.<uuid-6>": true
     },
-    "remoteChatFolderGrants": {
-      "<uuid-10>": {
-        "orgUuid": "<uuid-4>",
-        "accountUuid": "<uuid-5>",
-        "folders": [
-          "%USERPROFILE%\\BR_EP2026-082"
-        ]
-      }
-    }
+    "remoteControlStayReachable": true
   }
 }

@@ -19,6 +19,7 @@
       <Count>999</Count>
       <Interval>PT1M</Interval>
     </RestartOnFailure>
+    <StartWhenAvailable>true</StartWhenAvailable>
     <IdleSettings>
       <Duration>PT10M</Duration>
       <WaitTimeout>PT1H</WaitTimeout>
@@ -46,8 +47,8 @@
   </Triggers>
   <Actions Context="Author">
     <Exec>
-      <Command>%USERPROFILE%\AppData\Local\mise\shims\desktop-commander.exe</Command>
-      <Arguments>remote --persist-session</Arguments>
+      <Command>C:\Windows\System32\conhost.exe</Command>
+      <Arguments>--headless "%USERPROFILE%\AppData\Local\mise\shims\desktop-commander.exe" remote --persist-session</Arguments>
     </Exec>
   </Actions>
 </Task>
