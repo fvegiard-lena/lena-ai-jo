@@ -89,6 +89,7 @@
     "remoteToolsDeviceName": "jo",
     "ccAutoArchiveOnPrClose": true,
     "ccRemoteControlDefaultEnabled": true,
+    "remoteControlStayReachable": true,
     "epitaxyPrefs": {
       "starred-local-code-sessions": [],
       "starred-cowork-spaces": [],
@@ -273,6 +274,13 @@
       "fastModeStateMigrated.<uuid-5>.<uuid-6>": true,
       "ultrathinkAvailable.claude-fable-5-2.<uuid-6>": true
     },
-    "remoteControlStayReachable": true
+    "errorReportsToIntakeLatched": true,
+    "pageFirstLaunchDisabledLatched": true,
+    "dnsRetrySoonerLatched": true,
+    "chicagoChoiceByOrgAccount": {
+      "<uuid-5>:<uuid-6>": {
+        "personalPlan": true
+      }
+    }
   }
 }
