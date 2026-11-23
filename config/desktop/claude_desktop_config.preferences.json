@@ -67,6 +67,10 @@
     "orgWorkAcrossAppsDisabled": false,
     "ccdScheduledTasksEnabled": true,
     "httpCacheZstdLatched": true,
+    "pageFirstLaunchDisabledLatched": false,
+    "dnsRetrySoonerLatched": true,
+    "pageCodeCacheOffLatched": true,
+    "errorReportsToIntakeLatched": true,
     "sidebarMode": "chat",
     "bypassPermissionsModeEnabled": true,
     "bypassPermissionsOptInByAccount": {
@@ -86,6 +90,11 @@
     "keepAwakeEnabled": true,
     "coworkOnboardingResumeStep": null,
     "chicagoEnabled": true,
+    "chicagoChoiceByOrgAccount": {
+      "<uuid-5>:<uuid-6>": {
+        "personalPlan": true
+      }
+    },
     "remoteToolsDeviceName": "jo",
     "ccAutoArchiveOnPrClose": true,
     "ccRemoteControlDefaultEnabled": true,
@@ -273,14 +282,6 @@
       "fastMode": false,
       "fastModeStateMigrated.<uuid-5>.<uuid-6>": true,
       "ultrathinkAvailable.claude-fable-5-2.<uuid-6>": true
-    },
-    "errorReportsToIntakeLatched": true,
-    "pageFirstLaunchDisabledLatched": true,
-    "dnsRetrySoonerLatched": true,
-    "chicagoChoiceByOrgAccount": {
-      "<uuid-5>:<uuid-6>": {
-        "personalPlan": true
-      }
     }
   }
 }
