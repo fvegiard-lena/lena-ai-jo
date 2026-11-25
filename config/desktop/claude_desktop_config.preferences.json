@@ -283,6 +283,7 @@
       "fastModeStateMigrated.<uuid-5>.<uuid-6>": true,
       "ultrathinkAvailable.claude-fable-5-2.<uuid-6>": true
     },
-    "customShortcutsLatched": true
+    "customShortcutsLatched": true,
+    "runRecordsToIntakeLatched": true
   }
 }
